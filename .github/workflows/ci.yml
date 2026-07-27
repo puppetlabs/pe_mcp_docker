@@ -1,0 +1,91 @@
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: pe-mcp-thin:ci
+
+      - name: serve with no config -> fails fast, stdout stays clean
+        run: |
+          set +e
+          docker run --rm ${{ steps.build.outputs.imageid }} \
+            1>"$GITHUB_WORKSPACE/.out" 2>"$GITHUB_WORKSPACE/.err"
+          status=$?
+          set -e
+          if [ "${status}" -eq 0 ]; then
+            echo "::error::expected a non-zero exit code, got 0"
+            exit 1
+          fi
+          if [ -s "$GITHUB_WORKSPACE/.out" ]; then
+            echo "::error::stdout must stay empty on failure (it's the MCP protocol stream)"
+            cat "$GITHUB_WORKSPACE/.out"
+            exit 1
+          fi
+          grep -q "SMART_MCP_URL is not configured" "$GITHUB_WORKSPACE/.err"
+          grep -q "puppetlabs-pe_mcp" "$GITHUB_WORKSPACE/.err"
+
+      - name: validate against an unreachable URL -> clear FAIL, non-zero exit
+        run: |
+          mkdir -p /tmp/fixture-config
+          cat > /tmp/fixture-config/config.env <<'EOF'
+          SMART_MCP_URL=https://unreachable.invalid/mcp/
+          EOF
+          cat > /tmp/fixture-config/pe-ca.pem <<'EOF'
+          -----BEGIN CERTIFICATE-----
+          MIIFAKECERTDATAFORTESTINGPURPOSESONLYTHISISNOTAREALCERT
+          -----END CERTIFICATE-----
+          EOF
+          set +e
+          docker run --rm -v /tmp/fixture-config:/config ${{ steps.build.outputs.imageid }} validate
+          status=$?
+          set -e
+          if [ "${status}" -eq 0 ]; then
+            echo "::error::expected validate to fail against an unreachable URL"
+            exit 1
+          fi
+
+      - name: setup writes config.env and pe-ca.pem from piped answers
+        run: |
+          mkdir -p /tmp/setup-config
+          fake_cert=$(cat <<'EOF'
+          -----BEGIN CERTIFICATE-----
+          MIIFAKECERTDATAFORTESTINGPURPOSESONLYTHISISNOTAREALCERT
+          -----END CERTIFICATE-----
+          EOF
+          )
+          printf '1\nhttps://mcp-node.example.com/mcp/\n1\n%s\n' "${fake_cert}" | \
+            docker run --rm -i -v /tmp/setup-config:/config ${{ steps.build.outputs.imageid }} setup
+          grep -q "SMART_MCP_URL=https://mcp-node.example.com/mcp/" /tmp/setup-config/config.env
+          grep -q "BEGIN CERTIFICATE" /tmp/setup-config/pe-ca.pem
+
+      - name: unknown subcommand -> usage error
+        run: |
+          set +e
+          docker run --rm ${{ steps.build.outputs.imageid }} bogus 2>"$GITHUB_WORKSPACE/.err"
+          status=$?
+          set -e
+          if [ "${status}" -eq 0 ]; then
+            echo "::error::expected a non-zero exit code for an unknown subcommand"
+            exit 1
+          fi
+          grep -q "Unknown command" "$GITHUB_WORKSPACE/.err"
