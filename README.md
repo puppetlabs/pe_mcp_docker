@@ -12,7 +12,27 @@ that's a separate step using the [`puppetlabs-pe_mcp`](https://github.com/puppet
 Bolt module. If you don't have one yet, the `setup` wizard below will tell
 you exactly how to get one.
 
-## Quickstart
+## Native install (no Docker)
+
+Not on PyPI yet (pending an internal hosting decision) — install the wheel
+directly from the latest GitHub Release instead:
+
+```bash
+pip install https://github.com/puppetlabs/pe_mcp_docker/releases/latest/download/pe_mcp_thin-0.1.0-py3-none-any.whl
+
+export SMART_MCP_URL='https://<mcp-node-fqdn>/mcp/'
+export PE_CA_CERT='/path/to/pe-ca.pem'   # see "Getting the CA cert" below
+
+pe-mcp-thin validate   # self-check
+pe-mcp-thin serve      # what Claude Code's MCP config should invoke
+```
+
+Once PyPI hosting is available this becomes `pip install pe-mcp-thin` — no
+other change to the commands above. `setup`'s interactive `/config`-volume
+wizard is Docker-specific; native installs just set the two env vars
+directly, same as `docker run -e SMART_MCP_URL=... -e PE_CA_CERT=...` below.
+
+## Docker Quickstart
 
 ```bash
 # Pull (or build locally: docker build -t puppet/pe-mcp-thin .)
@@ -55,6 +75,24 @@ directory — not just one project):
 ```
 
 Restart Claude Code and check the `/mcp` panel — `pe-mcp` should show connected.
+
+Or, using the native install instead of Docker:
+
+```json
+{
+  "mcpServers": {
+    "pe-mcp": {
+      "type": "stdio",
+      "command": "pe-mcp-thin",
+      "args": ["serve"],
+      "env": {
+        "SMART_MCP_URL": "https://<mcp-node-fqdn>/mcp/",
+        "PE_CA_CERT": "/path/to/pe-ca.pem"
+      }
+    }
+  }
+}
+```
 
 ## Commands
 
