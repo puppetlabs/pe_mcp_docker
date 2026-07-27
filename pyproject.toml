@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pe-mcp-thin"
+version = "0.1.0"
+description = "Thin stdio<->HTTPS MCP proxy client for a deployed PE Smart MCP server"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = ["fastmcp>=3.4"]
+
+[project.urls]
+Homepage = "https://github.com/puppetlabs/pe_mcp_docker"
+
+[project.scripts]
+pe-mcp-thin = "cli:main"
+
+[tool.setuptools]
+py-modules = ["proxy", "selftest", "cli"]
