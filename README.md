@@ -15,10 +15,14 @@ you exactly how to get one.
 ## Native install (no Docker)
 
 Not on PyPI yet (pending an internal hosting decision) — install the wheel
-directly from the latest GitHub Release instead:
+from the latest GitHub Release instead. This repo is **internal**, so
+release assets require an authenticated download — a plain `pip install
+<url>` will 404. Use the GitHub CLI (`gh`, already authenticated for repo
+access) to fetch it first:
 
 ```bash
-pip install https://github.com/puppetlabs/pe_mcp_docker/releases/latest/download/pe_mcp_thin-0.1.0-py3-none-any.whl
+gh release download --repo puppetlabs/pe_mcp_docker --pattern '*.whl'
+pip install ./pe_mcp_thin-*-py3-none-any.whl
 
 export SMART_MCP_URL='https://<mcp-node-fqdn>/mcp/'
 export PE_CA_CERT='/path/to/pe-ca.pem'   # see "Getting the CA cert" below
@@ -28,7 +32,7 @@ pe-mcp-thin serve      # what Claude Code's MCP config should invoke
 ```
 
 Once PyPI hosting is available this becomes `pip install pe-mcp-thin` — no
-other change to the commands above. `setup`'s interactive `/config`-volume
+other change to the commands after that. `setup`'s interactive `/config`-volume
 wizard is Docker-specific; native installs just set the two env vars
 directly, same as `docker run -e SMART_MCP_URL=... -e PE_CA_CERT=...` below.
 
