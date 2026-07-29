@@ -7,9 +7,9 @@ PE_MCP_QUICKSTART_URL="https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstar
 not_configured_help() {
   cat >&2 <<EOF
 
-No Smart MCP server connection is set up yet. Two possibilities:
+No PE MCP server connection is set up yet. Two possibilities:
 
-  1) You don't have a Smart MCP server deployed on your PE ecosystem yet.
+  1) You don't have a PE MCP server deployed on your PE ecosystem yet.
      Deploying one is a separate one-time step using the puppetlabs-pe_mcp
      Bolt module (not this image). Quickstart:
        ${PE_MCP_QUICKSTART_URL}
@@ -36,7 +36,7 @@ setup() {
   echo "PE MCP thin-client setup"
   echo "========================"
   echo
-  echo "Do you already have a Smart MCP server deployed on Puppet Enterprise"
+  echo "Do you already have a PE MCP server deployed on Puppet Enterprise"
   echo "infrastructure?"
   echo
   echo "  1) Yes — help me connect to it"
@@ -47,7 +47,7 @@ setup() {
   if [ "${have_server}" != "1" ]; then
     cat <<EOF
 
-No problem — deploying a Smart MCP server is a separate, one-time step
+No problem — deploying a PE MCP server is a separate, one-time step
 using the puppetlabs-pe_mcp Bolt module (this image doesn't do that part).
 
 Full quickstart:
@@ -66,18 +66,18 @@ EOF
   fi
 
   echo
-  echo "Smart MCP URL — the HTTPS endpoint of your deployed server:"
+  echo "PE MCP URL — the HTTPS endpoint of your deployed server:"
   echo "  https://<mcp-node-fqdn>/mcp/"
   echo "where <mcp-node-fqdn> is the node you ran 'pe_mcp::deploy' against."
   echo
-  read -r -p "Smart MCP URL: " smart_url
+  read -r -p "PE MCP URL: " smart_url
   if [ -z "${smart_url}" ]; then
     echo "ERROR: URL cannot be empty." >&2
     exit 1
   fi
 
   echo
-  echo "PE CA certificate — your Smart MCP's nginx uses a certificate signed"
+  echo "PE CA certificate — your PE MCP's nginx uses a certificate signed"
   echo "by your PE Certificate Authority (not a public CA), so this client"
   echo "needs to trust it explicitly."
   echo
@@ -109,7 +109,7 @@ EOF
   fi
 
   cat > /config/config.env <<EOF
-SMART_MCP_URL=${smart_url}
+PE_MCP_URL=${smart_url}
 EOF
 
   echo
@@ -122,7 +122,7 @@ EOF
 }
 
 load_config() {
-  if [ -z "${SMART_MCP_URL:-}" ] && [ -f /config/config.env ]; then
+  if [ -z "${PE_MCP_URL:-}" ] && [ -f /config/config.env ]; then
     # shellcheck disable=SC1091
     source /config/config.env
   fi
@@ -134,8 +134,8 @@ load_config() {
 validate() {
   load_config
 
-  if [ -z "${SMART_MCP_URL:-}" ] || [ "${SMART_MCP_URL}" = "${PLACEHOLDER_URL}" ]; then
-    echo "SMART_MCP_URL is not configured." >&2
+  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "${PLACEHOLDER_URL}" ]; then
+    echo "PE_MCP_URL is not configured." >&2
     not_configured_help
     exit 1
   fi
@@ -145,15 +145,15 @@ validate() {
     exit 1
   fi
 
-  export SMART_MCP_URL PE_CA_CERT
+  export PE_MCP_URL PE_CA_CERT
   exec python selftest.py
 }
 
 serve() {
   load_config
 
-  if [ -z "${SMART_MCP_URL:-}" ] || [ "${SMART_MCP_URL}" = "${PLACEHOLDER_URL}" ]; then
-    echo "ERROR: SMART_MCP_URL is not configured." >&2
+  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "${PLACEHOLDER_URL}" ]; then
+    echo "ERROR: PE_MCP_URL is not configured." >&2
     not_configured_help
     exit 1
   fi
@@ -163,7 +163,7 @@ serve() {
     exit 1
   fi
 
-  export SMART_MCP_URL PE_CA_CERT
+  export PE_MCP_URL PE_CA_CERT
   exec python proxy.py
 }
 

@@ -1,7 +1,7 @@
-"""Self-check: verify the configured Smart MCP is reachable and responding.
+"""Self-check: verify the configured PE MCP is reachable and responding.
 
 Used by both `entrypoint.sh validate` and CI smoke tests. Performs a real
-tools/list handshake against SMART_MCP_URL using PE_CA_CERT for TLS
+tools/list handshake against PE_MCP_URL using PE_CA_CERT for TLS
 verification, and reports a clear PASS/FAIL diagnostic.
 """
 
@@ -20,25 +20,25 @@ async def check(url, ca_cert):
 
 
 def main():
-    url = os.environ.get("SMART_MCP_URL")
+    url = os.environ.get("PE_MCP_URL")
     ca_cert = os.environ.get("PE_CA_CERT")
 
     if not url or url == "https://REPLACE_WITH_MCP_NODE_FQDN/mcp/":
-        print("FAIL: SMART_MCP_URL is not configured. Run `setup` first.", file=sys.stderr)
+        print("FAIL: PE_MCP_URL is not configured. Run `setup` first.", file=sys.stderr)
         sys.exit(1)
 
     if not ca_cert or not os.path.isfile(ca_cert):
         print(f"FAIL: PE CA cert not found at '{ca_cert}'. Run `setup` first.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Checking Smart MCP at {url} ...", flush=True)
+    print(f"Checking PE MCP at {url} ...", flush=True)
     try:
         tools = asyncio.run(check(url, ca_cert))
     except Exception as exc:
-        print(f"FAIL: could not reach or authenticate to the Smart MCP: {exc}", file=sys.stderr)
+        print(f"FAIL: could not reach or authenticate to the PE MCP: {exc}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"PASS: connected to Smart MCP, {len(tools)} tool(s) available:")
+    print(f"PASS: connected to PE MCP, {len(tools)} tool(s) available:")
     for name in tools:
         print(f"  - {name}")
     sys.exit(0)

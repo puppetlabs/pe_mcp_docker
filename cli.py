@@ -3,7 +3,7 @@
 Mirrors entrypoint.sh's `serve`/`validate` subcommands for native
 (non-Docker) installs. `setup`'s interactive /config-volume wizard is
 Docker-specific and isn't replicated here — native installs set
-SMART_MCP_URL / PE_CA_CERT directly in the environment instead.
+PE_MCP_URL / PE_CA_CERT directly in the environment instead.
 """
 
 import sys
