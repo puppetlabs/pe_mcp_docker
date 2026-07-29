@@ -14,7 +14,7 @@ import proxy as _proxy_first_import  # noqa: F401  (ensures baseline import work
 
 
 def _reload_proxy_with_env(monkeypatch, **env: str):
-    for key in ("SMART_MCP_URL", "PE_CA_CERT"):
+    for key in ("PE_MCP_URL", "PE_CA_CERT"):
         monkeypatch.delenv(key, raising=False)
     for key, value in env.items():
         monkeypatch.setenv(key, value)
@@ -32,7 +32,7 @@ def test_defaults_when_env_unset(monkeypatch) -> None:
 def test_env_vars_override_defaults(monkeypatch) -> None:
     mod = _reload_proxy_with_env(
         monkeypatch,
-        SMART_MCP_URL="https://pe.example.com/mcp/",
+        PE_MCP_URL="https://pe.example.com/mcp/",
         PE_CA_CERT="/custom/ca.pem",
     )
     assert mod.REMOTE_MCP_URL == "https://pe.example.com/mcp/"
