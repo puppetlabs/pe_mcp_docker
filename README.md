@@ -18,7 +18,7 @@ Not on PyPI yet (pending an internal hosting decision) — install the wheel
 directly from the latest GitHub Release instead:
 
 ```bash
-pip install https://github.com/puppetlabs/pe_mcp_docker/releases/latest/download/pe_mcp_thin-0.1.0-py3-none-any.whl
+pip install https://github.com/puppetlabs/pe_mcp_docker/releases/latest/download/pe_mcp_thin-1.0.0-py3-none-any.whl
 
 export SMART_MCP_URL='https://<mcp-node-fqdn>/mcp/'
 export PE_CA_CERT='/path/to/pe-ca.pem'   # see "Getting the CA cert" below
