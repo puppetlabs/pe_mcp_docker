@@ -41,14 +41,14 @@ jobs:
             cat "$GITHUB_WORKSPACE/.out"
             exit 1
           fi
-          grep -q "SMART_MCP_URL is not configured" "$GITHUB_WORKSPACE/.err"
+          grep -q "PE_MCP_URL is not configured" "$GITHUB_WORKSPACE/.err"
           grep -q "puppetlabs-pe_mcp" "$GITHUB_WORKSPACE/.err"
 
       - name: validate against an unreachable URL -> clear FAIL, non-zero exit
         run: |
           mkdir -p /tmp/fixture-config
           cat > /tmp/fixture-config/config.env <<'EOF'
-          SMART_MCP_URL=https://unreachable.invalid/mcp/
+          PE_MCP_URL=https://unreachable.invalid/mcp/
           EOF
           cat > /tmp/fixture-config/pe-ca.pem <<'EOF'
           -----BEGIN CERTIFICATE-----
@@ -75,7 +75,7 @@ jobs:
           )
           printf '1\nhttps://mcp-node.example.com/mcp/\n1\n%s\n' "${fake_cert}" | \
             docker run --rm -i -v /tmp/setup-config:/config ${{ steps.build.outputs.imageid }} setup
-          grep -q "SMART_MCP_URL=https://mcp-node.example.com/mcp/" /tmp/setup-config/config.env
+          grep -q "PE_MCP_URL=https://mcp-node.example.com/mcp/" /tmp/setup-config/config.env
           grep -q "BEGIN CERTIFICATE" /tmp/setup-config/pe-ca.pem
 
       - name: unknown subcommand -> usage error

@@ -3,7 +3,7 @@ name: image-push
 on:
   push:
     tags:
-      - '[0-9]+.*'
+      - 'v*'
 
 jobs:
   main:
