@@ -1,1 +1,2 @@
 fastmcp>=3.4
+httpx

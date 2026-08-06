@@ -31,9 +31,39 @@ def test_check_returns_tool_names() -> None:
     fake_client.list_tools = AsyncMock(return_value=[fake_tool_a, fake_tool_b])
 
     with patch("selftest.Client", return_value=fake_client):
-        names = run_sync(selftest.check("https://pe.example.com/mcp/", "/tmp/ca.pem"))
+        names = run_sync(
+            selftest.check("https://pe.example.com/mcp/", "/tmp/ca.pem", "tok")
+        )
 
     assert names == ["puppet_node_lookup", "puppet_pql_query"]
+
+
+def test_check_omits_header_when_token_empty() -> None:
+    fake_client = MagicMock()
+    fake_client.__aenter__ = AsyncMock(return_value=fake_client)
+    fake_client.__aexit__ = AsyncMock(return_value=False)
+    fake_client.list_tools = AsyncMock(return_value=[])
+
+    with patch("selftest.StreamableHttpTransport") as fake_transport:
+        with patch("selftest.Client", return_value=fake_client):
+            run_sync(selftest.check("https://pe.example.com/mcp", "/tmp/ca.pem", ""))
+
+    assert fake_transport.call_args.kwargs["headers"] == {}
+
+
+def test_check_sends_rbac_token_header() -> None:
+    fake_client = MagicMock()
+    fake_client.__aenter__ = AsyncMock(return_value=fake_client)
+    fake_client.__aexit__ = AsyncMock(return_value=False)
+    fake_client.list_tools = AsyncMock(return_value=[])
+
+    with patch("selftest.StreamableHttpTransport") as fake_transport:
+        with patch("selftest.Client", return_value=fake_client):
+            run_sync(
+                selftest.check("https://pe.example.com/mcp/", "/tmp/ca.pem", "s3cret")
+            )
+
+    assert fake_transport.call_args.kwargs["headers"] == {"X-Authentication": "s3cret"}
 
 
 def test_main_fails_when_url_unset(monkeypatch, capsys) -> None:
@@ -45,13 +75,42 @@ def test_main_fails_when_url_unset(monkeypatch, capsys) -> None:
     assert "PE_MCP_URL is not configured" in capsys.readouterr().err
 
 
-def test_main_fails_when_url_is_placeholder(monkeypatch, capsys) -> None:
-    monkeypatch.setenv("PE_MCP_URL", "https://REPLACE_WITH_MCP_NODE_FQDN/mcp/")
+@pytest.mark.parametrize(
+    "placeholder",
+    [
+        "https://REPLACE_WITH_MCP_NODE_FQDN/mcp/",
+        "https://REPLACE_WITH_MCP_NODE_FQDN/mcp",
+    ],
+)
+def test_main_fails_when_url_is_placeholder(monkeypatch, capsys, placeholder) -> None:
+    monkeypatch.setenv("PE_MCP_URL", placeholder)
     monkeypatch.delenv("PE_CA_CERT", raising=False)
     with pytest.raises(SystemExit) as exc:
         selftest.main()
     assert exc.value.code == 1
     assert "is not configured" in capsys.readouterr().err
+
+
+def test_main_normalizes_trailing_slash_before_connecting(
+    monkeypatch, capsys, tmp_path
+) -> None:
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp/")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.delenv("PE_RBAC_TOKEN", raising=False)
+
+    seen = {}
+
+    async def fake_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        seen["url"] = url
+        return []
+
+    with patch("selftest.check", fake_check):
+        with pytest.raises(SystemExit) as exc:
+            selftest.main()
+    assert exc.value.code == 0
+    assert seen["url"] == "https://pe.example.com/mcp"
 
 
 def test_main_fails_when_ca_cert_missing(monkeypatch, capsys, tmp_path) -> None:
@@ -72,13 +131,92 @@ def test_main_fails_when_ca_cert_env_unset(monkeypatch, capsys) -> None:
     assert "PE CA cert not found" in capsys.readouterr().err
 
 
+def test_main_succeeds_without_rbac_token(monkeypatch, capsys, tmp_path) -> None:
+    """An unauthenticated PE MCP is a valid target — no token must not block."""
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.delenv("PE_RBAC_TOKEN", raising=False)
+
+    seen = {}
+
+    async def fake_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        seen["rbac_token"] = rbac_token
+        return ["puppet_node_lookup"]
+
+    with patch("selftest.check", fake_check):
+        with pytest.raises(SystemExit) as exc:
+            selftest.main()
+    assert exc.value.code == 0
+    assert seen["rbac_token"] == ""
+    out = capsys.readouterr().out
+    assert "without RBAC token" in out
+    assert "PASS" in out
+
+
+def test_whitespace_only_token_is_treated_as_absent(monkeypatch, capsys, tmp_path) -> None:
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.setenv("PE_RBAC_TOKEN", "   \n ")
+
+    seen = {}
+
+    async def fake_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        seen["rbac_token"] = rbac_token
+        return []
+
+    with patch("selftest.check", fake_check):
+        with pytest.raises(SystemExit):
+            selftest.main()
+    assert seen["rbac_token"] == ""
+
+
+def test_401_without_token_hints_at_missing_token(monkeypatch, capsys, tmp_path) -> None:
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.delenv("PE_RBAC_TOKEN", raising=False)
+
+    async def raising_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        raise RuntimeError("Client error '401 Unauthorized' for url")
+
+    with patch("selftest.check", raising_check):
+        with pytest.raises(SystemExit) as exc:
+            selftest.main()
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "requires authentication but no PE_RBAC_TOKEN" in err
+
+
+def test_401_with_token_hints_at_expiry(monkeypatch, capsys, tmp_path) -> None:
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.setenv("PE_RBAC_TOKEN", "tok")
+
+    async def raising_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        raise RuntimeError("Client error '401 Unauthorized' for url")
+
+    with patch("selftest.check", raising_check):
+        with pytest.raises(SystemExit) as exc:
+            selftest.main()
+    assert exc.value.code == 1
+    assert "may be expired" in capsys.readouterr().err
+
+
 def test_main_fails_when_check_raises(monkeypatch, capsys, tmp_path) -> None:
     ca = tmp_path / "ca.pem"
     ca.write_text("dummy")
     monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp/")
     monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.setenv("PE_RBAC_TOKEN", "tok")
 
-    async def raising_check(url: str, ca_cert: str) -> list[str]:
+    async def raising_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
         raise RuntimeError("connection refused")
 
     with patch("selftest.check", raising_check):
@@ -93,8 +231,9 @@ def test_main_success(monkeypatch, capsys, tmp_path) -> None:
     ca.write_text("dummy")
     monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp/")
     monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.setenv("PE_RBAC_TOKEN", "tok")
 
-    async def fake_check(url: str, ca_cert: str) -> list[str]:
+    async def fake_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
         return ["puppet_node_lookup", "puppet_pql_query"]
 
     with patch("selftest.check", fake_check):
