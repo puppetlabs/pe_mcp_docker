@@ -3,6 +3,19 @@ set -euo pipefail
 
 PLACEHOLDER_URL="https://REPLACE_WITH_MCP_NODE_FQDN/mcp/"
 PE_MCP_QUICKSTART_URL="https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart"
+RBAC_TOKEN_FILE=/config/rbac-token
+
+# The PE MCP is served at /mcp with no trailing slash. A trailing slash is
+# rewritten to /infra-assistant/mcp/ upstream and returns 404 *after* the
+# RBAC check passes, which makes it look like a server fault rather than a
+# URL typo. Normalize so neither form can bite.
+strip_trailing_slash() {
+  local url="$1"
+  while [ -n "${url}" ] && [ "${url}" != "${url%/}" ]; do
+    url="${url%/}"
+  done
+  printf '%s' "${url}"
+}
 
 not_configured_help() {
   cat >&2 <<EOF
@@ -67,13 +80,20 @@ EOF
 
   echo
   echo "PE MCP URL — the HTTPS endpoint of your deployed server:"
-  echo "  https://<mcp-node-fqdn>/mcp/"
+  echo "  https://<mcp-node-fqdn>/mcp"
   echo "where <mcp-node-fqdn> is the node you ran 'pe_mcp::deploy' against."
+  echo "Note: no trailing slash."
   echo
   read -r -p "PE MCP URL: " smart_url
   if [ -z "${smart_url}" ]; then
     echo "ERROR: URL cannot be empty." >&2
     exit 1
+  fi
+
+  normalized_url="$(strip_trailing_slash "${smart_url}")"
+  if [ "${normalized_url}" != "${smart_url}" ]; then
+    echo "Note: dropped the trailing slash — using ${normalized_url}"
+    smart_url="${normalized_url}"
   fi
 
   echo
@@ -108,6 +128,28 @@ EOF
     exit 1
   fi
 
+  echo
+  echo "PE RBAC token — where the MCP endpoint is gated on PE RBAC, this"
+  echo "client sends the token as the X-Authentication header. If your"
+  echo "deployment isn't gated, leave this blank and press Enter."
+  echo
+  echo "To get one, from a workstation with the PE client tools installed:"
+  echo "  puppet-access login --lifetime 1y"
+  echo "  cat ~/.puppetlabs/token"
+  echo
+  echo "The token is not echoed as you type or paste it."
+  read -r -s -p "PE RBAC token (blank for none): " rbac_token
+  echo
+
+  if [ -n "${rbac_token}" ]; then
+    # Kept out of config.env and mode 0600 — it's a credential, not config.
+    ( umask 077; printf '%s\n' "${rbac_token}" > "${RBAC_TOKEN_FILE}" )
+  else
+    # Clear any token from a previous run, so "blank" means blank.
+    rm -f "${RBAC_TOKEN_FILE}"
+    echo "No token stored — this client will send no X-Authentication header."
+  fi
+
   cat > /config/config.env <<EOF
 PE_MCP_URL=${smart_url}
 EOF
@@ -116,6 +158,9 @@ EOF
   echo "Setup complete. Wrote:"
   echo "  /config/config.env"
   echo "  /config/pe-ca.pem"
+  if [ -n "${rbac_token}" ]; then
+    echo "  ${RBAC_TOKEN_FILE} (mode 0600)"
+  fi
   echo
   echo "Next: run 'validate' to confirm connectivity, e.g.:"
   echo "  docker run --rm -it -v ~/.pe-mcp:/config <image> validate"
@@ -129,12 +174,21 @@ load_config() {
   if [ -z "${PE_CA_CERT:-}" ] && [ -f /config/pe-ca.pem ]; then
     export PE_CA_CERT=/config/pe-ca.pem
   fi
+  if [ -z "${PE_RBAC_TOKEN:-}" ] && [ -f "${RBAC_TOKEN_FILE}" ]; then
+    PE_RBAC_TOKEN="$(cat "${RBAC_TOKEN_FILE}")"
+    export PE_RBAC_TOKEN
+  fi
+  # An explicit -e PE_MCP_URL=... bypasses setup's normalization, so redo it here.
+  if [ -n "${PE_MCP_URL:-}" ]; then
+    PE_MCP_URL="$(strip_trailing_slash "${PE_MCP_URL}")"
+    export PE_MCP_URL
+  fi
 }
 
 validate() {
   load_config
 
-  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "${PLACEHOLDER_URL}" ]; then
+  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "$(strip_trailing_slash "${PLACEHOLDER_URL}")" ]; then
     echo "PE_MCP_URL is not configured." >&2
     not_configured_help
     exit 1
@@ -144,15 +198,17 @@ validate() {
     not_configured_help
     exit 1
   fi
-
-  export PE_MCP_URL PE_CA_CERT
+  # PE_RBAC_TOKEN is deliberately not required — deployments that don't gate
+  # on RBAC need no token, and selftest.py reports a 401 with a hint if one
+  # was actually needed.
+  export PE_MCP_URL PE_CA_CERT PE_RBAC_TOKEN
   exec python selftest.py
 }
 
 serve() {
   load_config
 
-  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "${PLACEHOLDER_URL}" ]; then
+  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "$(strip_trailing_slash "${PLACEHOLDER_URL}")" ]; then
     echo "ERROR: PE_MCP_URL is not configured." >&2
     not_configured_help
     exit 1
@@ -162,8 +218,8 @@ serve() {
     not_configured_help
     exit 1
   fi
-
-  export PE_MCP_URL PE_CA_CERT
+  # Not required — see validate(). An unauthenticated PE MCP is a valid target.
+  export PE_MCP_URL PE_CA_CERT PE_RBAC_TOKEN
   exec python proxy.py
 }
 
