@@ -12,6 +12,25 @@ that's a separate step using the [`puppetlabs-pe_mcp`](https://github.com/puppet
 Bolt module. If you don't have one yet, the `setup` wizard below will tell
 you exactly how to get one.
 
+> **Operational reference:** this README covers setup and connection.
+> For copy-paste commands, dual-target env var combinations, and
+> troubleshooting output you can compare your own output against, see
+> [CHEATSHEET.md](CHEATSHEET.md).
+
+## Which PE MCP target am I connecting to?
+
+This thin client can reach two different servers behind the same env vars —
+which one you're pointed at changes whether `PE_RBAC_TOKEN` is needed:
+
+| Target | What it is | `PE_RBAC_TOKEN` |
+|---|---|---|
+| **Decoupled PE MCP** (`puppetlabs-pe_mcp`) | A standalone, read-only MCP deployed via the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp) Bolt module, on its own node | Not needed — ignored if set |
+| **`pe-infra-assistant`** (built into PE console-services) | The older MCP embedded in Puppet Enterprise itself (PE 2025.11+, feature-flagged) | **Required** — every request 401s without it |
+
+Both are reached with the same `PE_MCP_URL`/`PE_CA_CERT` pair, just pointed
+at a different host/port; `pe-infra-assistant` additionally needs
+`PE_RBAC_TOKEN`. See below for how to get one.
+
 ## Native install (no Docker)
 
 Not on PyPI yet (pending an internal hosting decision) — install the wheel
@@ -22,6 +41,7 @@ pip install https://github.com/puppetlabs/pe_mcp_docker/releases/latest/download
 
 export PE_MCP_URL='https://<mcp-node-fqdn>/mcp/'
 export PE_CA_CERT='/path/to/pe-ca.pem'   # see "Getting the CA cert" below
+export PE_RBAC_TOKEN='...'               # only for pe-infra-assistant — see below; leave unset for the decoupled MCP
 
 pe-mcp-thin validate   # self-check
 pe-mcp-thin serve      # what Claude Code's MCP config should invoke
@@ -87,12 +107,39 @@ Or, using the native install instead of Docker:
       "args": ["serve"],
       "env": {
         "PE_MCP_URL": "https://<mcp-node-fqdn>/mcp/",
-        "PE_CA_CERT": "/path/to/pe-ca.pem"
+        "PE_CA_CERT": "/path/to/pe-ca.pem",
+        "PE_RBAC_TOKEN": "..."
       }
     }
   }
 }
 ```
+
+Omit `PE_RBAC_TOKEN` entirely for the decoupled MCP — it's read but never used
+against that target. See [Connecting to `pe-infra-assistant`](#connecting-to-pe-infra-assistant)
+below for when it's required.
+
+### Connecting to `pe-infra-assistant`
+
+`pe-infra-assistant` is the older MCP built into Puppet Enterprise's own
+console-services (PE 2025.11+), not deployed by `puppetlabs-pe_mcp`. Every
+request 401s without a valid PE RBAC token, forwarded as the
+`X-Authentication` header (not the more common `Authorization: Bearer`):
+
+```bash
+# generate a token (the RBAC user needs infrastructure_assistant:use:*)
+puppet-access login --lifetime 1y
+export PE_RBAC_TOKEN="$(cat ~/.puppetlabs/token)"
+
+export PE_MCP_URL='https://<pe-primary-fqdn>/mcp'   # NO trailing slash — see Troubleshooting
+export PE_CA_CERT='/path/to/pe-ca.pem'
+
+pe-mcp-thin validate
+```
+
+The PE license must also carry the "Infra Assistant/AI" entitlement, and the
+feature must be classified on (`puppet_enterprise::profile::master::enable_infra_assistant = true`)
+— both are PE-side prerequisites this thin client cannot detect for you.
 
 ## Commands
 
@@ -113,6 +160,9 @@ All three read config from `/config/config.env` + `/config/pe-ca.pem` (written b
   ```bash
   cat /etc/puppetlabs/puppet/ssl/certs/ca.pem
   ```
+- **"requires authentication but no PE_RBAC_TOKEN was supplied"** — you're pointed at `pe-infra-assistant` without a token set. This target *always* needs one; the decoupled MCP never does. See [Connecting to `pe-infra-assistant`](#connecting-to-pe-infra-assistant) above.
+- **A 401 during the handshake, or a token you know is valid still failing** — the diagnostic tells you whether the token was missing or is likely expired/rejected. Double-check it's sent as `X-Authentication`, not `Authorization: Bearer` — this thin client handles that for you, but if you're comparing against raw `curl` output, use the right header name.
+- **`PE_MCP_URL` with a trailing slash** — gets rewritten upstream to `/infra-assistant/mcp/` and 404s *after* auth passes, producing an opaque "Session terminated" instead of a clear signal. Always omit the trailing slash.
 
 ## License
 
