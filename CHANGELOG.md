@@ -2,6 +2,21 @@
 
 All notable changes to `pe_mcp_docker` are documented here.
 
+## [Unreleased]
+
+- Documentation-only overhaul: README rewritten as a lean quickstart
+  (uvx as the primary, no-install path, matching how PAG's registry entry
+  actually runs this server; pip and local-only Docker builds as
+  alternatives). Clarified that `puppet/pe-mcp-thin` is intentionally not
+  yet published to Docker Hub. Added client-agnostic MCP wiring guidance
+  (Claude Code, GitHub Copilot, or any other MCP client — this was never
+  Claude-specific). Added `CHEATSHEET.md` (full command reference,
+  verified against a live PE) and `docs/explanation_architecture.md`
+  (why this is a stdio↔HTTPS proxy, not a direct client).
+- Note: `PE_RBAC_TOKEN` support (dual-target auth, PR #8) is a separate,
+  not-yet-merged change — its own changelog entry lands with that PR, not
+  this one.
+
 ## [1.0.1] - 2026-07-29
 
 - **Breaking**: renamed the `SMART_MCP_URL` environment variable to
