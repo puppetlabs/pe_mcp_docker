@@ -90,3 +90,15 @@ For example, if you are using claude, then:
 
 * Add to `~/.mcp.json` the `pe-mcp-thin` server above for global access.  Or add it to `.mcp.json` for a specific project.
 - Restart claude and confirm that the `pe-mcp-thin` server is connected.
+
+### Explanations
+
+<!-- explanationlog -->
+* [Why pe-mcp-thin is a proxy, not a direct client](docs/explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md)
+<!-- explanationlogstop -->
+
+### How-To Guides
+
+<!-- howtolog -->
+* [pe_mcp_docker release](docs/howto_pe_mcp_docker_release.md)
+<!-- howtologstop -->
