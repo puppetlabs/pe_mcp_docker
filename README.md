@@ -3,14 +3,16 @@
 This repository is a small, standalone stdio↔HTTPS proxy that lets **any MCP client** (claude, copilot, cursor, etc) talk to a existing **PE MCP server** already deployed on your Puppet Enterprise infrastructure.
 
 If you don't have **an existing PE MCP**, then choose one of the following:
+
 * The **New** MCP:  This one will work on any PE installation.  For more information see the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module; or
-* The **Legacy** MCP: This one is only present on PE installations >= 2025.11.  For more information see 
+* The **Legacy** MCP: This one is only present on PE installations >= 2025.11.  For more information see [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
 
 ## Quickstart (fastest — no install)
 
 The `uvx` command below is the fastest path and needs nothing persistent and requires * [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
 If you'd rather not depend on `uv` , they you can also use `pip` and `docker`.  For more information see the [[shared_repositories/pe_mcp-private/repositories/pe_mcp_docker/CHEATSHEET|CHEATSHEET]]
+
 ### (1) Get the CA cert
 
 In order to connect to the MCP, this thin client must load the certificate authority CA that signed your MCP server's certificate.  
@@ -51,7 +53,7 @@ uvx --from git+https://github.com/puppetlabs/pe_mcp_docker.git@main pe-mcp-thin 
 Expect:
 
 ```
-Checking PE MCP at https://<mcp-node-fqdn>/mcp ...
+Checking PE MCP at https://<mcp-node-fqdn>/mcp (without RBAC token) ...
 PASS: connected to PE MCP, 10 tool(s) available:
   - puppet_node_lookup
   - puppet_pql_query
@@ -87,6 +89,7 @@ The following is a standard stdio MCP server configuration that spins up the `pe
 ```
 
 Claude is one of many available providers and will be used in a worked example below:
+
 * Copy the above block and paste it into either `~/.mcp.json` for every project or into a `.mcp.json` for one specific project.
 * Restart claude and confirm that the `pe-mcp-thin` server is connected.
 

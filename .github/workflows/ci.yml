@@ -64,19 +64,84 @@ jobs:
             exit 1
           fi
 
+      - name: config.env is parsed, never executed, even with shell metacharacters in it
+        run: |
+          mkdir -p /tmp/injection-config
+          # A previous version of load_config() `source`d config.env, so a
+          # value with command substitution would run as arbitrary shell code
+          # on every validate/serve. Prove that no longer happens.
+          cat > /tmp/injection-config/config.env <<'EOF'
+          PE_MCP_URL=https://pe.example.com/mcp$(touch /config/PWNED)
+          EOF
+          set +e
+          docker run --rm -v /tmp/injection-config:/config ${{ steps.build.outputs.imageid }} validate
+          set -e
+          if [ -f /tmp/injection-config/PWNED ]; then
+            echo "::error::config.env was executed as a shell script instead of parsed as data"
+            exit 1
+          fi
+
       - name: setup writes config.env and pe-ca.pem from piped answers
         run: |
-          mkdir -p /tmp/setup-config
-          fake_cert=$(cat <<'EOF'
+          mkdir -p /tmp/setup-config /tmp/fixture-cert
+          cat > /tmp/fixture-cert/pe-ca.pem <<'EOF'
           -----BEGIN CERTIFICATE-----
           MIIFAKECERTDATAFORTESTINGPURPOSESONLYTHISISNOTAREALCERT
           -----END CERTIFICATE-----
           EOF
-          )
-          printf '1\nhttps://mcp-node.example.com/mcp/\n1\n%s\n' "${fake_cert}" | \
-            docker run --rm -i -v /tmp/setup-config:/config ${{ steps.build.outputs.imageid }} setup
-          grep -q "PE_MCP_URL=https://mcp-node.example.com/mcp/" /tmp/setup-config/config.env
+          # Cert option 2 (mounted file) is used here instead of option 1
+          # (paste-until-EOF): `cat > pe-ca.pem` for option 1 reads until stdin
+          # truly closes, which would swallow the blank line meant for the
+          # RBAC token prompt that follows it.
+          printf '1\nhttps://mcp-node.example.com/mcp/\n2\n\n' | \
+            docker run --rm -i \
+              -v /tmp/setup-config:/config \
+              -v /tmp/fixture-cert/pe-ca.pem:/import/pe-ca.pem:ro \
+              ${{ steps.build.outputs.imageid }} setup
+          # The trailing slash is normalized away before being written.
+          grep -qx "PE_MCP_URL=https://mcp-node.example.com/mcp" /tmp/setup-config/config.env
           grep -q "BEGIN CERTIFICATE" /tmp/setup-config/pe-ca.pem
+          if [ -f /tmp/setup-config/rbac-token ]; then
+            echo "::error::expected no rbac-token file when the token prompt is left blank"
+            exit 1
+          fi
+
+      - name: setup stores the RBAC token at 0600 and clears it on blank re-entry
+        run: |
+          mkdir -p /tmp/setup-rbac
+          printf '1\nhttps://mcp-node.example.com/mcp\n2\ns3cret-token\n' | \
+            docker run --rm -i \
+              -v /tmp/setup-rbac:/config \
+              -v /tmp/fixture-cert/pe-ca.pem:/import/pe-ca.pem:ro \
+              ${{ steps.build.outputs.imageid }} setup
+          # The image runs as root and rbac-token is written at mode 0600, so
+          # it's unreadable to the runner's own (non-root) user by design —
+          # sudo is needed here to check its content. The mode check below
+          # deliberately does NOT use sudo: stat only needs directory
+          # traversal, not file-read permission, so it also proves the
+          # restriction is real (a plain `cat` as the runner user would fail).
+          sudo grep -qx "s3cret-token" /tmp/setup-rbac/rbac-token
+          mode=$(stat -c '%a' /tmp/setup-rbac/rbac-token)
+          if [ "${mode}" != "600" ]; then
+            echo "::error::expected rbac-token mode 600, got ${mode}"
+            exit 1
+          fi
+          if grep -q "PE_RBAC_TOKEN\|s3cret-token" /tmp/setup-rbac/config.env; then
+            echo "::error::the RBAC token must never be written to config.env"
+            exit 1
+          fi
+
+          # Re-running setup with a blank token must clear the stale one, so
+          # "blank" reliably means "no token" rather than "keep the old one".
+          printf '1\nhttps://mcp-node.example.com/mcp\n2\n\n' | \
+            docker run --rm -i \
+              -v /tmp/setup-rbac:/config \
+              -v /tmp/fixture-cert/pe-ca.pem:/import/pe-ca.pem:ro \
+              ${{ steps.build.outputs.imageid }} setup
+          if [ -f /tmp/setup-rbac/rbac-token ]; then
+            echo "::error::expected rbac-token to be cleared on blank re-entry"
+            exit 1
+          fi
 
       - name: unknown subcommand -> usage error
         run: |
