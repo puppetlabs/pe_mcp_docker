@@ -2,6 +2,7 @@
 tags:
   - -inbox/pag
 ---
+
 # Why pe-mcp-thin is a proxy, not a direct client
 
 ## Purpose
@@ -14,7 +15,7 @@ This document answers:
 
 ## Background
 
-Written while shipping `pe-mcp-thin` 1.0.2 (adds `PE_RBAC_TOKEN` support for the RBAC-gated `pe-infra-assistant` target). The *shape* of the stack is as follows: three moving parts (MCP clients, a local bridge, a remote PE-hosted MCP server) that only compose the way they do because MCP client stdio transports, PE's private CA, and PE RBAC each carry constraints that a "just point the client at HTTPS" design would violate.
+Written while shipping `pe-mcp-thin` 1.0.2 (adds `PE_RBAC_TOKEN` support for the RBAC-gated `pe-infra-assistant` target). The _shape_ of the stack is as follows: three moving parts (MCP clients, a local bridge, a remote PE-hosted MCP server) that only compose the way they do because MCP client stdio transports, PE's private CA, and PE RBAC each carry constraints that a "just point the client at HTTPS" design would violate.
 
 ## Key Concepts
 
@@ -49,11 +50,11 @@ if __name__ == "__main__":
 
 - The whole proxy is these ~10 lines: an HTTPS transport pointed at the remote PE MCP, wrapped in a FastMCP `Client`, wrapped in `create_proxy(...)`, run with `transport="stdio"`.
 - `create_proxy` is what makes this a passthrough rather than a re-implementation — tools and calls appear from the remote server, not from this file.
-- The stdio/HTTPS asymmetry is the *entire* reason this file exists: change either side to match the other and the proxy disappears.
+- The stdio/HTTPS asymmetry is the _entire_ reason this file exists: change either side to match the other and the proxy disappears.
 
 ### Why not just point the client at HTTPS directly
 
-Most MCP clients' stdio transport doesn't know how to speak HTTPS to a server signed by a private, non-public CA — and even where a client *does* support remote HTTP MCP servers directly, you'd still need to distribute your PE CA cert and any RBAC token to every client's own config format. A thin local proxy means:
+Most MCP clients' stdio transport doesn't know how to speak HTTPS to a server signed by a private, non-public CA — and even where a client _does_ support remote HTTP MCP servers directly, you'd still need to distribute your PE CA cert and any RBAC token to every client's own config format. A thin local proxy means:
 
 - **One artifact, any client.** The same `pe-mcp-thin serve` command works identically whether it's wired into Claude Code, Copilot, or something else — the client-specific integration surface is just "run this stdio command," which every MCP client already supports.
 - **Auth/TLS handled once, centrally.** `PE_CA_CERT` and `PE_RBAC_TOKEN` are read once by the proxy, not re-implemented per client.
@@ -61,11 +62,11 @@ Most MCP clients' stdio transport doesn't know how to speak HTTPS to a server si
 
 ### Three install paths, and why uvx is the default
 
-`uvx --from git+...` (see [README Quickstart](../README.md#quickstart-fastest--no-install)) needs nothing persistent — `uv` fetches, builds, and runs the package in an ephemeral environment, and this is also exactly the mechanism used by tools like PAG that manage MCP servers on your behalf via a registry entry. `pip install` and Docker exist as alternatives for environments where `uv` isn't available or a persistent, pre-built artifact is preferred — Docker specifically was chosen over, say, a native OS package because it needed to work identically across Linux/macOS without per-platform build steps, at the cost of not yet being published anywhere (see [CHEATSHEET.md](../CHEATSHEET.md#docker-local-build--not-yet-published-to-docker-hub) for why and the local-build workaround).
+`uvx --from git+...` (see [README Quickstart](../README.md#quickstart-fastest--no-install)) needs nothing persistent — `uv` fetches, builds, and runs the package in an ephemeral environment, and this is also exactly the mechanism used by tools like PAG that manage MCP servers on your behalf via a registry entry. `pip install` and Docker exist as alternatives for environments where `uv` isn't available or a persistent, pre-built artifact is preferred — Docker specifically was chosen over, say, a native OS package because it needed to work identically across Linux/macOS without per-platform build steps, at the cost of not yet being published anywhere (see [`cheatsheet_pe_mcp_docker.md`](cheatsheet_pe_mcp_docker.md#docker-local-build--not-yet-published-to-docker-hub) for why and the local-build workaround).
 
 ### Two targets, one client — the PE_RBAC_TOKEN design choice
 
-`pe-mcp-thin` can point at either of two different PE MCP servers (see [README](../README.md#which-pe-mcp-target-am-i-connecting-to)): a standalone decoupled MCP, or the older `pe-infra-assistant` MCP built into PE itself, both of which are RBAC-gated. Rather than branching the client's code per target, `proxy.py` always reads `PE_RBAC_TOKEN` and forwards it as the `X-Authentication` header when present.  This keeps the client's logic target-agnostic: which server actually *checks* that header is PE's decision, not this proxy's.
+`pe-mcp-thin` can point at either of two different PE MCP servers (see [README](../README.md#which-pe-mcp-target-am-i-connecting-to)): a standalone decoupled MCP, or the older `pe-infra-assistant` MCP built into PE itself, both of which are RBAC-gated. Rather than branching the client's code per target, `proxy.py` always reads `PE_RBAC_TOKEN` and forwards it as the `X-Authentication` header when present. This keeps the client's logic target-agnostic: which server actually _checks_ that header is PE's decision, not this proxy's.
 
 **Code Location:** [`proxy.py:30-36`](https://github.com/puppetlabs/pe_mcp_docker/blob/554ed0b8359d8202ffa7b83c6606ad3561153613/proxy.py#L30-L36)
 
@@ -88,6 +89,6 @@ AUTH_HEADERS = {"X-Authentication": RBAC_TOKEN} if RBAC_TOKEN else {}
 ## Related Topics
 
 - [../README.md](../README.md) — quickstart, all three install paths
-- [../CHEATSHEET.md](../CHEATSHEET.md) — full command reference, verified output, troubleshooting
+- [`cheatsheet_pe_mcp_docker.md`](cheatsheet_pe_mcp_docker.md) — full command reference, verified output, troubleshooting
 - [FastMCP](https://gofastmcp.com) — the library `proxy.py` is built on
 - [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp) — deploys the decoupled MCP target this proxy connects to

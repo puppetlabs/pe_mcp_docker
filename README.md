@@ -9,7 +9,7 @@ If you don't have **an existing PE MCP**, then choose one of the following:
 
 ## Quickstart (fastest — no install)
 
-The `uvx` command below is the fastest path and needs nothing persistent and requires \* [`uv`](https://docs.astral.sh/uv/getting-started/installation/).  For alternative installation methods see the [[shared_repositories/pe_mcp-private/repositories/pe_mcp_docker/CHEATSHEET|CHEATSHEET]]
+The `uvx` command below is the fastest path and needs nothing persistent and requires \* [`uv`](https://docs.astral.sh/uv/getting-started/installation/).  For alternative installation methods see the [pe_mcp_docker cheatsheet](docs/cheatsheet_pe_mcp_docker.md).
 
 ### (1) Get the CA cert
 
@@ -95,6 +95,7 @@ For example, if you are using claude, then:
 
 <!-- explanationlog -->
 * [Why pe-mcp-thin is a proxy, not a direct client](docs/explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md)
+* [PAG testing](docs/pag-testing/explanation_pag_testing.md)
 <!-- explanationlogstop -->
 
 ### How-To Guides
@@ -102,3 +103,9 @@ For example, if you are using claude, then:
 <!-- howtolog -->
 * [pe_mcp_docker release](docs/howto_pe_mcp_docker_release.md)
 <!-- howtologstop -->
+
+### Cheatsheets
+
+<!-- cheatsheetlog -->
+* [pe_mcp_docker](docs/cheatsheet_pe_mcp_docker.md)
+<!-- cheatsheetlogstop -->
