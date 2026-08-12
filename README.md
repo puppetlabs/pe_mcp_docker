@@ -4,18 +4,18 @@ This repository is a small, standalone stdio↔HTTPS proxy that lets **any MCP c
 
 If you don't have **an existing PE MCP**, then choose one of the following:
 
-* The **New** MCP:  This one will work on any PE installation.  For more information see the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module; or
-* The **Legacy** MCP: This one is only present on PE installations >= 2025.11.  For more information see [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
+- The **New** MCP: This one will work on any PE installation. For more information see the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module; or
+- The **Legacy** MCP: This one is only present on PE installations >= 2025.11. For more information see [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
 
 ## Quickstart (fastest — no install)
 
-The `uvx` command below is the fastest path and needs nothing persistent and requires * [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+The `uvx` command below is the fastest path and needs nothing persistent and requires \* [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
 
-If you'd rather not depend on `uv` , they you can also use `pip` and `docker`.  For more information see the [[shared_repositories/pe_mcp-private/repositories/pe_mcp_docker/CHEATSHEET|CHEATSHEET]]
+If you'd rather not depend on `uv` , they you can also use `pip` and `docker`. For more information see the [[shared_repositories/pe_mcp-private/repositories/pe_mcp_docker/CHEATSHEET|CHEATSHEET]]
 
 ### (1) Get the CA cert
 
-In order to connect to the MCP, this thin client must load the certificate authority CA that signed your MCP server's certificate.  
+In order to connect to the MCP, this thin client must load the certificate authority CA that signed your MCP server's certificate.
 
 If your PE ecosystem uses the self-signed CA on the primary, then it's easy, do the following:
 
@@ -23,19 +23,19 @@ If your PE ecosystem uses the self-signed CA on the primary, then it's easy, do 
 # create a 'certs' directory, e.g.,
 mkdir -p certs
 
-# download the primary's CA (-k is required for this fetch because you don't have 
+# download the primary's CA (-k is required for this fetch because you don't have
 # the cert to verify against itself yet).  If you have access to the primary directly
 # via ssh, then this cert lives here: /etc/puppetlabs/puppet/ssl/certs/ca.pem
 curl -k "https://<pe-primary-fqdn>:8140/puppet-ca/v1/certificate/ca" -o certs/pe-ca.pem
 ```
 
-If, however, your PE ecosystem browser certificates are signed by another authority (a company one, for example), then download this CA instead.  
+If, however, your PE ecosystem browser certificates are signed by another authority (a company one, for example), then download this CA instead.
 
 Remember the path to this cert because you'll need it in step **(3)**.
 
 ### (2) Get a valid RBAC token
 
-There are a number of ways to get an RBAC token.  One is to log onto the PE console and follow [these instructions](https://help.puppet.com/pe/2025.11/topics/rbac-token-auth-generate-token-console.htm)  Save this token securely somewhere because you'll need this in step **(3)**.
+There are a number of ways to get an RBAC token. One is to log onto the PE console and follow [these instructions](https://help.puppet.com/pe/2025.11/topics/rbac-token-auth-generate-token-console.htm) Save this token securely somewhere because you'll need this in step **(3)**.
 
 ### (3) Validate your connection to the MCP
 
@@ -90,8 +90,8 @@ The following is a standard stdio MCP server configuration that spins up the `pe
 
 Claude is one of many available providers and will be used in a worked example below:
 
-* Copy the above block and paste it into either `~/.mcp.json` for every project or into a `.mcp.json` for one specific project.
-* Restart claude and confirm that the `pe-mcp-thin` server is connected.
+- Copy the above block and paste it into either `~/.mcp.json` for every project or into a `.mcp.json` for one specific project.
+- Restart claude and confirm that the `pe-mcp-thin` server is connected.
 
 | Client | Where to configure |
 | --- | --- |
