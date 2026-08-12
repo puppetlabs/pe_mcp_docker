@@ -5,13 +5,11 @@ This repository is a small, standalone stdio↔HTTPS proxy that lets **any MCP c
 If you don't have **an existing PE MCP**, then choose one of the following:
 
 - The **New** MCP: This one will work on any PE installation. For more information see the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module; or
-- The **Legacy** MCP: This one is only present on PE installations >= 2025.11. For more information see [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
+- The **Legacy** MCP: This one is only present on PE installations >= 2025.11. For more information see [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm)
 
 ## Quickstart (fastest — no install)
 
-The `uvx` command below is the fastest path and needs nothing persistent and requires \* [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
-
-If you'd rather not depend on `uv` , they you can also use `pip` and `docker`. For more information see the [[shared_repositories/pe_mcp-private/repositories/pe_mcp_docker/CHEATSHEET|CHEATSHEET]]
+The `uvx` command below is the fastest path and needs nothing persistent and requires \* [`uv`](https://docs.astral.sh/uv/getting-started/installation/).  For alternative installation methods see the [[shared_repositories/pe_mcp-private/repositories/pe_mcp_docker/CHEATSHEET|CHEATSHEET]]
 
 ### (1) Get the CA cert
 
@@ -60,11 +58,11 @@ PASS: connected to PE MCP, 10 tool(s) available:
   ...
 ```
 
-Once that passes, point your MCP client at the exact same command with `serve` instead of `validate` — see [Connecting an MCP client](#connecting-an-mcp-client-any-client) below.
+Only if `pe-mcp-thin validate` passes, then go to the next section and get your MCP connected.
 
 ### (4) Connect your provider
 
-The following is a standard stdio MCP server configuration that spins up the `pe-mcp-thin` via `uvx` and should work with any MCP supported tool.
+The following is a standard stdio MCP server configuration that spins up the `pe-mcp-thin` via `uvx` and should work with any MCP supported tool.  Notice that here we use `pe-mcp-thin serve` instead of `validate`.
 
 ```json
 {
@@ -88,15 +86,7 @@ The following is a standard stdio MCP server configuration that spins up the `pe
 }
 ```
 
-Claude is one of many available providers and will be used in a worked example below:
+For example, if you are using claude, then:
 
-- Copy the above block and paste it into either `~/.mcp.json` for every project or into a `.mcp.json` for one specific project.
+* Add to `~/.mcp.json` the `pe-mcp-thin` server above for global access.  Or add it to `.mcp.json` for a specific project.
 - Restart claude and confirm that the `pe-mcp-thin` server is connected.
-
-| Client | Where to configure |
-| --- | --- |
-| Claude Code | `~/.mcp.json` (all projects), or a project-root `.mcp.json` (that project only) — see [Claude Code MCP docs](https://docs.claude.com/en/docs/claude-code/mcp) |
-| GitHub Copilot | see [Copilot MCP docs](https://docs.github.com/en/copilot/how-tos/context/model-context-protocol/extend-copilot-chat-with-mcp) |
-| Any other MCP-compatible client | consult that client's own MCP server configuration docs — the JSON shape above is standard |
-
-After wiring it in, restart your client and confirm `pe-mcp` shows connected.
