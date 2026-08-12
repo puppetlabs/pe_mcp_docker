@@ -39,4 +39,5 @@ jobs:
             puppet/pe-mcp-thin:latest
 
       - name: Image digest
-        run: echo 'pe-mcp-thin: ${{ steps.docker_build.outputs.digest }}'
+        run: |
+          echo 'pe-mcp-thin: ${{ steps.docker_build.outputs.digest }}'

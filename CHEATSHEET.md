@@ -93,3 +93,71 @@ unset PE_RBAC_TOKEN
 ```
 
 All three: expect `PASS: connected to PE MCP, N tool(s) available` with an identical tool list every time.
+
+## Cutting a release (maintainer checklist)
+
+A release is one thing: an annotated `v*` git tag pushed to `main`. That fires `.github/workflows/release.yml` (builds sdist + wheel, attaches them to the GitHub Release — the actual artifact) and `.github/workflows/image-push.yml` (Docker Hub push — expected to fail until `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN` are configured). No PyPI, no `twine`, no ghcr.
+
+Swap the version numbers for each subsequent release. Example below is `v1.0.2`.
+
+### Pre-flight
+
+- [ ] PR merged into `main`: `gh pr view <N> --json state,mergedAt` → `MERGED`.
+- [ ] `pyproject.toml` version matches the intended tag: `grep '^version' pyproject.toml` → `version = "1.0.2"`.
+- [ ] `CHANGELOG.md` has a real `[1.0.2]` entry (accurate date, real PR links).
+- [ ] CI green on `main` tip: `gh run list --branch main --limit 5`.
+- [ ] `CHEATSHEET.md` version refs bumped (this file — lines 9, 24, 25, 33: `@v1.0.1` → `@v1.0.2`, `pe_mcp_thin-1.0.1-*.whl` → `pe_mcp_thin-1.0.2-*.whl`). Land on the same PR that bumps `pyproject.toml`, or a small PR that merges before the tag push.
+- [ ] `README.md` needs no change — uses `@main`.
+- [ ] No new publish workflow snuck in: `grep -rE 'pypi|twine|publish|dockerhub|docker.io|ghcr' .github/workflows/` should only match `image-push.yml`.
+
+### Tag & push
+
+From a clean checkout of `main` (not from a PR branch):
+
+```bash
+cd repositories/pe_mcp_docker
+git checkout main
+git pull origin main
+git log -1 --oneline                                    # sanity: tip = the release PR's merge commit
+git tag -a v1.0.2 -m "Release 1.0.2 — PE RBAC token support"
+git push origin v1.0.2
+```
+
+If you notice something wrong _before_ `git push`: `git tag -d v1.0.2` and start again. Once pushed, treat the tag as immutable — retag as `v1.0.2.1` or bump to `v1.0.3` instead of force-pushing.
+
+### Watch the workflows
+
+```bash
+gh run watch --workflow=release.yml                     # must succeed
+gh run list --workflow=image-push.yml --limit 1         # expected: conclusion=failure (no Docker Hub secrets)
+```
+
+If `release.yml` fails, read `gh run view <run-id> --log-failed`, fix on `main`, cut `v1.0.3` — do not force-push tags.
+
+### Populate the release notes
+
+```bash
+gh release edit v1.0.2 --notes-file <(
+  sed -n '/^## \[1.0.2\]/,/^## \[1.0.1\]/p' CHANGELOG.md | sed '$d'
+)
+gh release view v1.0.2
+```
+
+### Post-flight
+
+- [ ] Release page has both assets: `gh release view v1.0.2 --json assets --jq '.assets[].name'` → `pe_mcp_thin-1.0.2-py3-none-any.whl` and `pe_mcp_thin-1.0.2.tar.gz`.
+- [ ] `uvx --from git+https://github.com/puppetlabs/pe_mcp_docker.git@v1.0.2 pe-mcp-thin validate` PASSes against a live MCP.
+- [ ] `pip install https://github.com/puppetlabs/pe_mcp_docker/releases/latest/download/pe_mcp_thin-1.0.2-py3-none-any.whl` works in a throwaway venv, then `pe-mcp-thin validate` PASSes.
+- [ ] Close any superseded PRs (for 1.0.2: `gh pr close 8 --comment "Superseded by #11, released as v1.0.2"`).
+- [ ] Bump the PAG catalog (`pag-testing/uvx/internal/catalog/servers/pe-mcp-thin/server.json`) from `@gavins-rbac-token` to `@v1.0.2` and re-run both flavours of PAG test (`pag-quickstart-mcp-new/` and `pag-quickstart-mcp-legacy/`).
+
+### Known non-issues
+
+- `image-push.yml` shows failed on every release — expected until Docker Hub credentials are configured. Does not block the release.
+- `softprops/action-gh-release@v2` briefly shows a draft state in the UI while assets upload; it's non-draft by the time the workflow finishes.
+
+### If a release goes wrong
+
+- Wrong version in `pyproject.toml` (tag says `v1.0.2` but wheel filename says `1.0.1`): bump `pyproject.toml`, merge to `main`, cut `v1.0.3`. Do not retag `v1.0.2`.
+- `release.yml` succeeds but the wheel is broken: land the fix on `main`, cut `v1.0.3`, mark `v1.0.2` pre-release (or delete the release object — but leave the tag; deleting the tag breaks anyone who already pinned `@v1.0.2`).
+- Tag pushed to the wrong commit: do not force-push. Delete the release object, cut a new tag at the intended commit, note it in `CHANGELOG.md` alongside the fixed version.

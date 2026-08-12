@@ -1,0 +1,4 @@
+# Decoupled PE MCP
+export PE_MCP_URL=https://dread-candour.delivery.puppetlabs.net/mcp
+export PE_CA_CERT=certs/pe-ca.pem
+export PE_RBAC_TOKEN=<LONG_LONG_RBAC_TOKEN>
