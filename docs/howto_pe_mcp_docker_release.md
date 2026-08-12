@@ -118,7 +118,7 @@ The tag push fires two GitHub Actions workflows:
 
 Nothing else ships. There is **no PyPI publish**, **no `twine upload`**, **no ghcr push**, **no external registry write** beyond the (currently no-op) Docker Hub attempt. If a future release starts publishing to PyPI or Docker Hub, update this guide and the table above.
 
-Consumers install the release via `uvx --from git+…@vX.Y.Z`, `pip install …/releases/latest/download/pe_mcp_thin-X.Y.Z-py3-none-any.whl`, or by building the Docker image from source at that tag — all three are documented in [`CHEATSHEET.md`](../CHEATSHEET.md).
+Consumers install the release via `uvx --from git+…@vX.Y.Z`, `pip install …/releases/latest/download/pe_mcp_thin-X.Y.Z-py3-none-any.whl`, or by building the Docker image from source at that tag — all three are documented in [`cheatsheet_pe_mcp_docker.md`](cheatsheet_pe_mcp_docker.md).
 
 ## Prerequisites
 
@@ -157,16 +157,16 @@ Do these in order. Don't tag until every box is ticked.
   # -> latest ci/main run should show conclusion: success
   ```
 
-- [ ] **`CHEATSHEET.md` bumped to the new version.** The cheatsheet hard-codes the version in three places (see [Post-flight](#post-flight-after-the-tag-lands)) — do the edit *before* the tag so the release commit people land on already points at the correct artifacts.
+- [ ] **`docs/cheatsheet_pe_mcp_docker.md` bumped to the new version.** The cheatsheet hard-codes the version in three places (see [Post-flight](#post-flight-after-the-tag-lands)) — do the edit *before* the tag so the release commit people land on already points at the correct artifacts.
 
   Files/lines to update for 1.0.2:
-  - `CHEATSHEET.md:9` — `@v1.0.1` → `@v1.0.2` (Quick Reference table)
-  - `CHEATSHEET.md:24-25` — `@v1.0.1` → `@v1.0.2` (uvx worked example, `validate` + `serve`)
-  - `CHEATSHEET.md:33` — `pe_mcp_thin-1.0.1-py3-none-any.whl` → `pe_mcp_thin-1.0.2-py3-none-any.whl` (pip install URL)
+  - `docs/cheatsheet_pe_mcp_docker.md:9` — `@v1.0.1` → `@v1.0.2` (Quick Reference table)
+  - `docs/cheatsheet_pe_mcp_docker.md:27-28` — `@v1.0.1` → `@v1.0.2` (uvx worked example, `validate` + `serve`)
+  - `docs/cheatsheet_pe_mcp_docker.md:34` — `pe_mcp_thin-1.0.1-py3-none-any.whl` → `pe_mcp_thin-1.0.2-py3-none-any.whl` (pip install URL)
 
   Either land these on the same PR that bumps `pyproject.toml`, or ship them as a separate small PR that merges *before* the tag push.
 
-  > **Longer-term fix (out of scope for 1.0.2):** rewrite line 33 as `pe_mcp_thin-*-py3-none-any.whl` under `/releases/latest/download/` so it self-updates every release, and consider whether lines 9/24/25 should switch to `@main` or a `{version}` placeholder. Track separately if you want to do that.
+  > **Longer-term fix (out of scope for 1.0.2):** rewrite line 34 as `pe_mcp_thin-*-py3-none-any.whl` under `/releases/latest/download/` so it self-updates every release, and consider whether lines 9/27/28 should switch to `@main` or a `{version}` placeholder. Track separately if you want to do that.
 
 - [ ] **`README.md` is fine as-is.** It uses `@main` (always current), no version references — nothing to change per release.
 
@@ -304,7 +304,7 @@ PASS: connected to PE MCP, 10 tool(s) available:
 - [`.github/workflows/release.yml`](../.github/workflows/release.yml) — the workflow that builds sdist + wheel and attaches them to the GitHub Release on `v*` tag push.
 - [`.github/workflows/image-push.yml`](../.github/workflows/image-push.yml) — the (currently no-op) Docker Hub push workflow.
 - [`CHANGELOG.md`](../CHANGELOG.md) — the per-version entry `gh release edit` pulls its notes body from.
-- [`CHEATSHEET.md`](../CHEATSHEET.md) — the operator reference whose hard-coded version strings must be bumped in pre-flight.
+- [`cheatsheet_pe_mcp_docker.md`](cheatsheet_pe_mcp_docker.md) — the operator reference whose hard-coded version strings must be bumped in pre-flight.
 - [`softprops/action-gh-release`](https://github.com/softprops/action-gh-release) — the GitHub Action that creates the Release object and uploads assets.
 - [Semantic Versioning](https://semver.org/) — the versioning scheme the `vX.Y.Z` tags follow.
 

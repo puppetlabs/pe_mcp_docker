@@ -61,7 +61,7 @@ Most MCP clients' stdio transport doesn't know how to speak HTTPS to a server si
 
 ### Three install paths, and why uvx is the default
 
-`uvx --from git+...` (see [README Quickstart](../README.md#quickstart-fastest--no-install)) needs nothing persistent — `uv` fetches, builds, and runs the package in an ephemeral environment, and this is also exactly the mechanism used by tools like PAG that manage MCP servers on your behalf via a registry entry. `pip install` and Docker exist as alternatives for environments where `uv` isn't available or a persistent, pre-built artifact is preferred — Docker specifically was chosen over, say, a native OS package because it needed to work identically across Linux/macOS without per-platform build steps, at the cost of not yet being published anywhere (see [CHEATSHEET.md](../CHEATSHEET.md#docker-local-build--not-yet-published-to-docker-hub) for why and the local-build workaround).
+`uvx --from git+...` (see [README Quickstart](../README.md#quickstart-fastest--no-install)) needs nothing persistent — `uv` fetches, builds, and runs the package in an ephemeral environment, and this is also exactly the mechanism used by tools like PAG that manage MCP servers on your behalf via a registry entry. `pip install` and Docker exist as alternatives for environments where `uv` isn't available or a persistent, pre-built artifact is preferred — Docker specifically was chosen over, say, a native OS package because it needed to work identically across Linux/macOS without per-platform build steps, at the cost of not yet being published anywhere (see [`cheatsheet_pe_mcp_docker.md`](cheatsheet_pe_mcp_docker.md#docker-local-build--not-yet-published-to-docker-hub) for why and the local-build workaround).
 
 ### Two targets, one client — the PE_RBAC_TOKEN design choice
 
@@ -88,6 +88,6 @@ AUTH_HEADERS = {"X-Authentication": RBAC_TOKEN} if RBAC_TOKEN else {}
 ## Related Topics
 
 - [../README.md](../README.md) — quickstart, all three install paths
-- [../CHEATSHEET.md](../CHEATSHEET.md) — full command reference, verified output, troubleshooting
+- [`cheatsheet_pe_mcp_docker.md`](cheatsheet_pe_mcp_docker.md) — full command reference, verified output, troubleshooting
 - [FastMCP](https://gofastmcp.com) — the library `proxy.py` is built on
 - [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp) — deploys the decoupled MCP target this proxy connects to
