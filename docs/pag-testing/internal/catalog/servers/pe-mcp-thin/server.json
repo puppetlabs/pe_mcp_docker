@@ -1,0 +1,52 @@
+{
+  "name": "com.perforce/pe-mcp-thin",
+  "version": "1.0.2",
+  "title": "Puppet Enterprise MCP (DEVCATALOG)",
+  "description": "Connects AI tools to Puppet Enterprise for managing and automating your infrastructure.",
+  "repository": {
+    "url": "https://github.com/puppetlabs/pe_mcp_docker",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "pe-mcp-thin",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--from",
+          "value": "git+https://github.com/puppetlabs/pe_mcp_docker.git@gavins-rbac-token"
+        }
+      ],
+      "packageArguments": [
+        {
+          "type": "positional",
+          "value": "serve"
+        }
+      ],
+      "environmentVariables": [
+          {
+              "name": "PE_MCP_URL",
+              "description": "The HTTPS endpoint of your Puppet Enterprise MCP server (e.g. https://<mcp-node-fqdn>/mcp). For more information see https://github.com/puppetlabs/pe_mcp_docker.",
+              "isRequired": true
+          },
+          {
+              "name": "PE_CA_CERT",
+              "description": "Path to your Puppet Enterprise CA certificate file (e.g., /tmp/pe-ca.pem). For more information see https://github.com/puppetlabs/pe_mcp_docker.",
+              "isRequired": true
+          },
+          {
+              "name": "PE_RBAC_TOKEN",
+              "description": "PE RBAC token for authentication. For more information see https://github.com/puppetlabs/pe_mcp_docker.",
+              "isRequired": true,
+              "isSecret": true
+          }
+      ]
+    }
+  ],
+  "_meta": {}
+}

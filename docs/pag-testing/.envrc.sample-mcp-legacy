@@ -1,0 +1,5 @@
+# Legacy Infra Assistant MCP on the primary
+# export PE_MCP_URL=https://bad-signboard.delivery.puppetlabs.net/mcp
+export PE_MCP_URL=https://bad-signboard/mcp
+export PE_CA_CERT=certs/pe-ca.pem
+export PE_RBAC_TOKEN=<LONG_LONG_RBAC_TOKEN>
