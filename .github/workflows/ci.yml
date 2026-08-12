@@ -97,7 +97,13 @@ jobs:
               -v /tmp/setup-rbac:/config \
               -v /tmp/fixture-cert/pe-ca.pem:/import/pe-ca.pem:ro \
               ${{ steps.build.outputs.imageid }} setup
-          grep -qx "s3cret-token" /tmp/setup-rbac/rbac-token
+          # The image runs as root and rbac-token is written at mode 0600, so
+          # it's unreadable to the runner's own (non-root) user by design —
+          # sudo is needed here to check its content. The mode check below
+          # deliberately does NOT use sudo: stat only needs directory
+          # traversal, not file-read permission, so it also proves the
+          # restriction is real (a plain `cat` as the runner user would fail).
+          sudo grep -qx "s3cret-token" /tmp/setup-rbac/rbac-token
           mode=$(stat -c '%a' /tmp/setup-rbac/rbac-token)
           if [ "${mode}" != "600" ]; then
             echo "::error::expected rbac-token mode 600, got ${mode}"
