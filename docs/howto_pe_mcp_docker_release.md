@@ -2,6 +2,7 @@
 tags:
   - -inbox/pag
 ---
+
 <!--
 # Common Guidelines
 **Orientation — capture the knowledge behind the problem (read this first):**
@@ -157,14 +158,14 @@ Do these in order. Don't tag until every box is ticked.
   # -> latest ci/main run should show conclusion: success
   ```
 
-- [ ] **`docs/cheatsheet_pe_mcp_docker.md` bumped to the new version.** The cheatsheet hard-codes the version in three places (see [Post-flight](#post-flight-after-the-tag-lands)) — do the edit *before* the tag so the release commit people land on already points at the correct artifacts.
+- [ ] **`docs/cheatsheet_pe_mcp_docker.md` bumped to the new version.** The cheatsheet hard-codes the version in three places (see [Post-flight](#post-flight-after-the-tag-lands)) — do the edit _before_ the tag so the release commit people land on already points at the correct artifacts.
 
   Files/lines to update for 1.0.2:
   - `docs/cheatsheet_pe_mcp_docker.md:9` — `@v1.0.1` → `@v1.0.2` (Quick Reference table)
   - `docs/cheatsheet_pe_mcp_docker.md:27-28` — `@v1.0.1` → `@v1.0.2` (uvx worked example, `validate` + `serve`)
   - `docs/cheatsheet_pe_mcp_docker.md:34` — `pe_mcp_thin-1.0.1-py3-none-any.whl` → `pe_mcp_thin-1.0.2-py3-none-any.whl` (pip install URL)
 
-  Either land these on the same PR that bumps `pyproject.toml`, or ship them as a separate small PR that merges *before* the tag push.
+  Either land these on the same PR that bumps `pyproject.toml`, or ship them as a separate small PR that merges _before_ the tag push.
 
   > **Longer-term fix (out of scope for 1.0.2):** rewrite line 34 as `pe_mcp_thin-*-py3-none-any.whl` under `/releases/latest/download/` so it self-updates every release, and consider whether lines 9/27/28 should switch to `@main` or a `{version}` placeholder. Track separately if you want to do that.
 
@@ -198,7 +199,7 @@ git tag -a v1.0.2 -m "Release 1.0.2 — PE RBAC token support"
 git push origin v1.0.2
 ```
 
-**Key concept — tags are immutable once pushed.** If you notice something wrong *after* creating the tag locally but *before* `git push`, delete the local tag (`git tag -d v1.0.2`) and start again. Once the tag is pushed, treat it as immutable — retag with `v1.0.2.1` (or bump to `v1.0.3`) instead of force-pushing a moved tag. Anyone who has already pinned `@v1.0.2` (e.g. via `uvx --from git+…@v1.0.2`) will get a different artifact than you if you rewrite it, and the divergence is silent.
+**Key concept — tags are immutable once pushed.** If you notice something wrong _after_ creating the tag locally but _before_ `git push`, delete the local tag (`git tag -d v1.0.2`) and start again. Once the tag is pushed, treat it as immutable — retag with `v1.0.2.1` (or bump to `v1.0.3`) instead of force-pushing a moved tag. Anyone who has already pinned `@v1.0.2` (e.g. via `uvx --from git+…@v1.0.2`) will get a different artifact than you if you rewrite it, and the divergence is silent.
 
 ### Watch the workflows
 

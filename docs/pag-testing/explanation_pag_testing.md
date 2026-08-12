@@ -10,7 +10,7 @@ This document answers:
 
 ## Background
 
-This directory was carved out while shipping `pe-mcp-thin` 1.0.2 — the release that adds `PE_RBAC_TOKEN` support so the same thin client can front both the **decoupled** PE MCP (new, ignores the token) and the **legacy** `pe-infra-assistant` MCP (PE 2025.11+, gates on the token via `X-Authentication`). The registry entry needed a new declared env var, `isSecret: true` for that env var, and a `runtimeArguments --from` bump — all of which are silent-failure-prone at the PAG-catalog layer. The two `pag-quickstart-mcp-*` project directories and the one canonical `server.json` under `internal/catalog/servers/pe-mcp-thin/` are the reusable rig that proved the change end-to-end before Noah published it.
+This directory was carved out while shipping `pe-mcp-thin` 1.0.2 — the release that adds `PE_RBAC_TOKEN` support so the same thin client can front both the **decoupled** PE MCP (new, ignores the token) and the **legacy** `pe-infra-assistant` MCP (PE 2025.11+, gates on the token via `X-Authentication`). The registry entry needed a new declared env var, `isSecret: true` for that env var, and a `runtimeArguments --from` bump — all of which are silent-failure-prone at the PAG-catalog layer. The two `pag-quickstart-mcp-*` project directories and the one canonical `server.json` under `internal/catalog/servers/pe-mcp-thin/` are the reusable rig that proved the change end-to-end before it gets published.
 
 The document's subject is not that release — it's the **domain mechanics** the rig exercises: PAG's `devcatalog` override, per-directory scoping, the `server.json`-name convention, and the target-flavour matrix that any future `server.json` edit will need to be rerun through.
 
@@ -20,9 +20,9 @@ The document's subject is not that release — it's the **domain mechanics** the
 
 ### Devcatalog is a client-side shadow, not a registry-side test
 
-PAG resolves servers from an ordered list of `[[registries]]` in its config, first-match wins. A registry of `type = "devcatalog"` with a `file://` URL points at a local directory; PAG loads it **before** the hosted `mcp-registry` entry of the same name. That means editing your local file and refreshing PAG's catalog is enough to make your unpublished `server.json` become the one PAG enables and runs — nothing on Noah's hosted registry has to change, and no other user sees your edit.
+PAG resolves servers from an ordered list of `[[registries]]` in its config, first-match wins. A registry of `type = "devcatalog"` with a `file://` URL points at a local directory; PAG loads it **before** the hosted `mcp-registry` entry of the same name. That means editing your local file and refreshing PAG's catalog is enough to make your unpublished `server.json` become the one PAG enables and runs — nothing on the hosted registry has to change, and no other user sees your edit.
 
-The important corollary: what this proves is the **shape and runtime behaviour of the record you'll eventually publish** — env-var declarations, `isRequired` / `isSecret` flags, `runtimeArguments --from` pointing at the right git ref, the tool list PAG surfaces once the server starts. It does **not** exercise the hosted registry's write path (that only happens when Noah publishes), and it does **not** exercise PE connectivity from the registry side — for that you still need a real PE MCP target behind whatever URL you set. See [`../../README.md`](../../README.md) for what standing up a PE MCP entails.
+The important corollary: what this proves is the **shape and runtime behaviour of the record you'll eventually publish** — env-var declarations, `isRequired` / `isSecret` flags, `runtimeArguments --from` pointing at the right git ref, the tool list PAG surfaces once the server starts. It does **not** exercise the hosted registry's write path (that only happens when it gets published), and it does **not** exercise PE connectivity from the registry side — for that you still need a real PE MCP target behind whatever URL you set. See [`../../README.md`](../../README.md) for what standing up a PE MCP entails.
 
 **Concrete artifact in this directory:** [`internal/catalog/servers/pe-mcp-thin/server.json`](internal/catalog/servers/pe-mcp-thin/server.json) — the one file both `pag-quickstart-mcp-*` project directories resolve through. Note `packages[0].runtimeArguments[0].value` points at a branch (`@gavins-rbac-token`) rather than a tag: the devcatalog run is what proves the branch's uvx-installable form works before it becomes `@v1.0.2`.
 
@@ -185,17 +185,3 @@ Repeat the whole sequence in the other quickstart directory to prove both flavou
 ### Tear down or you keep shadowing the hosted entry
 
 Once your `server.json` variant is either published or discarded, delete or comment out the `[[registries]]` block in each `.pag/config.local.toml` — otherwise every future session started from this directory keeps loading the local file, hiding any changes to the hosted entry. If PAG's cached state gets stuck (e.g. dashboard keeps nagging for a token after you saved it, or `pag_state` never leaves `starting`), delete `.pag/config.toml` and `.pag/config.toml.lock` — PAG regenerates them on the next enable.
-
-## Related Topics
-
-- [`../cheatsheet_pe_mcp_docker.md`](../cheatsheet_pe_mcp_docker.md) — operational commands for `pe-mcp-thin` itself (uvx, pip, Docker); the CLI-side sanity check you can run before wiring anything into PAG.
-- [`../explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md`](../explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md) — why this client is a stdio↔HTTPS proxy in the first place; frames what PAG is being pointed at.
-- [`../howto_pe_mcp_docker_release.md`](../howto_pe_mcp_docker_release.md) — release procedure, whose post-flight includes rerunning both `pag-quickstart-mcp-*` flavours through this same rig after the tag ships.
-- [[cheatsheet_pag]] — the general PAG operational reference (Path A hosted / Path B devcatalog, publish flow) this document specialises for `pe-mcp-thin`.
-- [[cheatsheet_pag_verification]] — glance-and-go commands and the `pag_devcatalog_verify.py` script referenced above.
-- [[howto_how_to_point_pag_at_any_pe_mcp_endpoint_by_swapping_one_env_var]] — the same override mechanism, viewed from the "aim PAG at a different endpoint without editing `server.json`" angle.
-- [[howto_how_to_add_or_update_a_pag_registry_entry_for_pe_mcp_or_any_perforce_mcp_server]] — the write path (send to Noah) that this local test is the pre-flight for.
-- [[explanation_pag_perforce_agentic_gateway_overview]] — durable mental model for PAG (client + registry), the 5 compliance gates, what devcatalog does and does not verify.
-- [[cheatsheet_pe_rbac_token_testing_for_pe_mcp_thin_1_0_2]] — why the two MCP flavours differ on `PE_RBAC_TOKEN` behaviour, plus token generation commands.
-- [PAG](https://github.com/perforce/perforce-agentic-gateway) — the gateway this devcatalog override is a feature of.
-- [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp) — the module that deploys the decoupled MCP target the "new" quickstart aims at.
