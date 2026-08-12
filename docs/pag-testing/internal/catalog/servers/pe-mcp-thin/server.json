@@ -1,7 +1,7 @@
 {
-  "name": "com.perforce/pe-mcp-thin",
+  "name": "com.perforce/puppet-enterprise",
   "version": "1.0.2",
-  "title": "Puppet Enterprise MCP (DEVCATALOG)",
+  "title": "Puppet Enterprise MCP",
   "description": "Connects AI tools to Puppet Enterprise for managing and automating your infrastructure.",
   "repository": {
     "url": "https://github.com/puppetlabs/pe_mcp_docker",
@@ -19,7 +19,7 @@
         {
           "type": "named",
           "name": "--from",
-          "value": "git+https://github.com/puppetlabs/pe_mcp_docker.git@gavins-rbac-token"
+          "value": "git+https://github.com/puppetlabs/pe_mcp_docker.git@v1.0.2"
         }
       ],
       "packageArguments": [
