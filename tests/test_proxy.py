@@ -245,6 +245,21 @@ def test_non_401_response_is_silent(monkeypatch, capsys) -> None:
     assert capsys.readouterr().err == ""
 
 
+def test_401_diagnostic_never_prints_the_token_value(monkeypatch, capsys) -> None:
+    """The token is a credential; _diagnose_response must never echo it, even
+    though it's a module-level global readily available where the hint is
+    printed."""
+    mod = _reload_proxy_with_env(
+        monkeypatch,
+        PE_MCP_URL="https://pe.example.com/mcp",
+        PE_RBAC_TOKEN="s3cret-token-value",
+    )
+    _run(mod._diagnose_response(_FakeResponse(401)))
+    captured = capsys.readouterr()
+    assert "s3cret-token-value" not in captured.out
+    assert "s3cret-token-value" not in captured.err
+
+
 def test_proxy_and_client_are_constructed(monkeypatch) -> None:
     mod = _reload_proxy_with_env(monkeypatch)
     assert mod.client is not None

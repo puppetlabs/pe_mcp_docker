@@ -17,6 +17,8 @@ strip_trailing_slash() {
   printf '%s' "${url}"
 }
 
+NORMALIZED_PLACEHOLDER_URL="$(strip_trailing_slash "${PLACEHOLDER_URL}")"
+
 not_configured_help() {
   cat >&2 <<EOF
 
@@ -188,7 +190,7 @@ load_config() {
 validate() {
   load_config
 
-  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "$(strip_trailing_slash "${PLACEHOLDER_URL}")" ]; then
+  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "${NORMALIZED_PLACEHOLDER_URL}" ]; then
     echo "PE_MCP_URL is not configured." >&2
     not_configured_help
     exit 1
@@ -208,7 +210,7 @@ validate() {
 serve() {
   load_config
 
-  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "$(strip_trailing_slash "${PLACEHOLDER_URL}")" ]; then
+  if [ -z "${PE_MCP_URL:-}" ] || [ "${PE_MCP_URL}" = "${NORMALIZED_PLACEHOLDER_URL}" ]; then
     echo "ERROR: PE_MCP_URL is not configured." >&2
     not_configured_help
     exit 1

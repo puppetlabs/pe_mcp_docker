@@ -53,7 +53,7 @@ uvx --from git+https://github.com/puppetlabs/pe_mcp_docker.git@main pe-mcp-thin 
 Expect:
 
 ```
-Checking PE MCP at https://<mcp-node-fqdn>/mcp ...
+Checking PE MCP at https://<mcp-node-fqdn>/mcp (without RBAC token) ...
 PASS: connected to PE MCP, 10 tool(s) available:
   - puppet_node_lookup
   - puppet_pql_query

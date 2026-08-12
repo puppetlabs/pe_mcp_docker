@@ -209,6 +209,33 @@ def test_401_with_token_hints_at_expiry(monkeypatch, capsys, tmp_path) -> None:
     assert "may be expired" in capsys.readouterr().err
 
 
+def test_401_hint_prefers_real_status_code_over_message_text(
+    monkeypatch, capsys, tmp_path
+) -> None:
+    """An exception whose message doesn't mention "401" but carries a real
+    response.status_code must still get the 401 hint — proves the check
+    isn't relying solely on substring-matching the message."""
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.delenv("PE_RBAC_TOKEN", raising=False)
+
+    class _FakeResponse:
+        status_code = 401
+
+    async def raising_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        exc = RuntimeError("Session terminated")
+        exc.response = _FakeResponse()
+        raise exc
+
+    with patch("selftest.check", raising_check):
+        with pytest.raises(SystemExit) as exc:
+            selftest.main()
+    assert exc.value.code == 1
+    assert "requires authentication but no PE_RBAC_TOKEN" in capsys.readouterr().err
+
+
 def test_main_fails_when_check_raises(monkeypatch, capsys, tmp_path) -> None:
     ca = tmp_path / "ca.pem"
     ca.write_text("dummy")
@@ -224,6 +251,49 @@ def test_main_fails_when_check_raises(monkeypatch, capsys, tmp_path) -> None:
             selftest.main()
     assert exc.value.code == 1
     assert "could not reach or authenticate" in capsys.readouterr().err
+
+
+def test_rbac_token_never_appears_in_output_on_failure(
+    monkeypatch, capsys, tmp_path
+) -> None:
+    """The token is a credential; a failure diagnostic must never echo it,
+    even though it's readily available in scope when the hint is printed."""
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.setenv("PE_RBAC_TOKEN", "s3cret-token-value")
+
+    async def raising_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        raise RuntimeError("Client error '401 Unauthorized' for url")
+
+    with patch("selftest.check", raising_check):
+        with pytest.raises(SystemExit):
+            selftest.main()
+    captured = capsys.readouterr()
+    assert "s3cret-token-value" not in captured.out
+    assert "s3cret-token-value" not in captured.err
+
+
+def test_rbac_token_never_appears_in_output_on_success(
+    monkeypatch, capsys, tmp_path
+) -> None:
+    ca = tmp_path / "ca.pem"
+    ca.write_text("dummy")
+    monkeypatch.setenv("PE_MCP_URL", "https://pe.example.com/mcp")
+    monkeypatch.setenv("PE_CA_CERT", str(ca))
+    monkeypatch.setenv("PE_RBAC_TOKEN", "s3cret-token-value")
+
+    async def fake_check(url: str, ca_cert: str, rbac_token: str) -> list[str]:
+        return ["puppet_node_lookup"]
+
+    with patch("selftest.check", fake_check):
+        with pytest.raises(SystemExit) as exc:
+            selftest.main()
+    assert exc.value.code == 0
+    captured = capsys.readouterr()
+    assert "s3cret-token-value" not in captured.out
+    assert "s3cret-token-value" not in captured.err
 
 
 def test_main_success(monkeypatch, capsys, tmp_path) -> None:
