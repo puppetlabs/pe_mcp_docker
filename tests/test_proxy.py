@@ -7,8 +7,10 @@ functions on an already-imported instance.
 
 from __future__ import annotations
 
+import http.server
 import importlib
 import sys
+import threading
 
 import proxy as _proxy_first_import  # noqa: F401  (ensures baseline import works)
 
@@ -258,6 +260,54 @@ def test_401_diagnostic_never_prints_the_token_value(monkeypatch, capsys) -> Non
     captured = capsys.readouterr()
     assert "s3cret-token-value" not in captured.out
     assert "s3cret-token-value" not in captured.err
+
+
+class _CapturingHandler(http.server.BaseHTTPRequestHandler):
+    """Records the headers of the one request it expects to receive."""
+
+    received_headers: dict[str, str] = {}
+
+    def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler naming)
+        _CapturingHandler.received_headers = dict(self.headers)
+        self.send_response(200)
+        self.end_headers()
+
+    def log_message(self, *args: object) -> None:  # keep test output quiet
+        pass
+
+
+def test_auth_header_reaches_a_real_http_server(monkeypatch) -> None:
+    """The unit tests elsewhere assert on StreamableHttpTransport/factory
+    kwargs, which would miss a fastmcp/httpx API shift that stopped the
+    header from actually being sent. Prove it end-to-end: a real
+    httpx.AsyncClient built by the real factory, over a real loopback
+    socket, must deliver X-Authentication to the far end."""
+    mod = _reload_proxy_with_env(
+        monkeypatch,
+        PE_MCP_URL="https://pe.example.com/mcp",
+        PE_RBAC_TOKEN="s3cret",
+    )
+    # This request is plain HTTP, not HTTPS, so there's nothing to verify --
+    # bypass the factory's CA-cert loading rather than feeding it a fake cert.
+    monkeypatch.setattr(mod, "CA_CERT_PATH", False)
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), _CapturingHandler)
+    port = server.server_address[1]
+    thread = threading.Thread(target=server.handle_request, daemon=True)
+    thread.start()
+
+    async def _make_request() -> None:
+        client = mod._httpx_client_factory(headers=mod.AUTH_HEADERS)
+        async with client:
+            await client.get(f"http://127.0.0.1:{port}/")
+
+    try:
+        _run(_make_request())
+        thread.join(timeout=5)
+    finally:
+        server.server_close()
+
+    assert _CapturingHandler.received_headers.get("X-Authentication") == "s3cret"
 
 
 def test_proxy_and_client_are_constructed(monkeypatch) -> None:

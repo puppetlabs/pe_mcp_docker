@@ -28,6 +28,17 @@ read_config_value() {
   sed -n "s/^${key}=//p" "${file}" 2>/dev/null | tail -n1
 }
 
+# `read` exits non-zero on EOF, which `set -e` would otherwise turn into an
+# opaque, unlabeled exit if stdin runs dry mid-setup (e.g. piped input with
+# too few lines, or no tty at all). Give it an actionable message instead.
+prompt() {
+  if ! read "$@"; then
+    echo "ERROR: expected interactive input but stdin ended before this prompt." >&2
+    echo "       Run with 'docker run -it', or pipe an answer for every prompt." >&2
+    exit 1
+  fi
+}
+
 not_configured_help() {
   cat >&2 <<EOF
 
@@ -66,7 +77,7 @@ setup() {
   echo "  1) Yes — help me connect to it"
   echo "  2) No  — I need to deploy one first"
   echo
-  read -r -p "Choice [1/2]: " have_server
+  prompt -r -p "Choice [1/2]: " have_server
 
   if [ "${have_server}" != "1" ]; then
     cat <<EOF
@@ -95,7 +106,7 @@ EOF
   echo "where <mcp-node-fqdn> is the node you ran 'pe_mcp::deploy' against."
   echo "Note: no trailing slash."
   echo
-  read -r -p "PE MCP URL: " smart_url
+  prompt -r -p "PE MCP URL: " smart_url
   if [ -z "${smart_url}" ]; then
     echo "ERROR: URL cannot be empty." >&2
     exit 1
@@ -120,7 +131,7 @@ EOF
   echo "  1) Paste the PEM content now"
   echo "  2) Copy from a file already mounted into this container"
   echo "     (e.g. -v /path/to/ca.pem:/import/pe-ca.pem:ro)"
-  read -r -p "Choice [1/2]: " cert_choice
+  prompt -r -p "Choice [1/2]: " cert_choice
 
   if [ "${cert_choice}" = "2" ]; then
     if [ ! -f /import/pe-ca.pem ]; then
@@ -149,7 +160,7 @@ EOF
   echo "  cat ~/.puppetlabs/token"
   echo
   echo "The token is not echoed as you type or paste it."
-  read -r -s -p "PE RBAC token (blank for none): " rbac_token
+  prompt -r -s -p "PE RBAC token (blank for none): " rbac_token
   echo
 
   if [ -n "${rbac_token}" ]; then
@@ -186,6 +197,13 @@ load_config() {
     export PE_CA_CERT=/config/pe-ca.pem
   fi
   if [ -z "${PE_RBAC_TOKEN:-}" ] && [ -f "${RBAC_TOKEN_FILE}" ]; then
+    if [ ! -r "${RBAC_TOKEN_FILE}" ]; then
+      echo "ERROR: ${RBAC_TOKEN_FILE} exists but isn't readable by this process." >&2
+      echo "       It's written mode 0600, so it's likely owned by a different" >&2
+      echo "       user than this container is now running as. Re-run 'setup'" >&2
+      echo "       to rewrite it, or fix ownership on the mounted volume." >&2
+      exit 1
+    fi
     PE_RBAC_TOKEN="$(cat "${RBAC_TOKEN_FILE}")"
     export PE_RBAC_TOKEN
   fi
