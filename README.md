@@ -94,6 +94,7 @@ For example, if you are using claude, then:
 ### Explanations
 
 <!-- explanationlog -->
+* [pag testing](docs/explanation_pag_testing.md)
 * [Why pe-mcp-thin is a proxy, not a direct client](docs/explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md)
 <!-- explanationlogstop -->
 
