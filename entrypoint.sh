@@ -19,6 +19,15 @@ strip_trailing_slash() {
 
 NORMALIZED_PLACEHOLDER_URL="$(strip_trailing_slash "${PLACEHOLDER_URL}")"
 
+# config.env holds an operator-entered value (a pasted URL) verbatim, so it
+# must never be executed as a script -- a value containing `$(...)` or `` ` ``
+# would otherwise run as arbitrary shell code every time this is read. Extract
+# the value textually instead of sourcing the file.
+read_config_value() {
+  local key="$1" file="$2"
+  sed -n "s/^${key}=//p" "${file}" 2>/dev/null | tail -n1
+}
+
 not_configured_help() {
   cat >&2 <<EOF
 
@@ -170,8 +179,8 @@ EOF
 
 load_config() {
   if [ -z "${PE_MCP_URL:-}" ] && [ -f /config/config.env ]; then
-    # shellcheck disable=SC1091
-    source /config/config.env
+    PE_MCP_URL="$(read_config_value PE_MCP_URL /config/config.env)"
+    export PE_MCP_URL
   fi
   if [ -z "${PE_CA_CERT:-}" ] && [ -f /config/pe-ca.pem ]; then
     export PE_CA_CERT=/config/pe-ca.pem

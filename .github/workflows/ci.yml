@@ -64,6 +64,23 @@ jobs:
             exit 1
           fi
 
+      - name: config.env is parsed, never executed, even with shell metacharacters in it
+        run: |
+          mkdir -p /tmp/injection-config
+          # A previous version of load_config() `source`d config.env, so a
+          # value with command substitution would run as arbitrary shell code
+          # on every validate/serve. Prove that no longer happens.
+          cat > /tmp/injection-config/config.env <<'EOF'
+          PE_MCP_URL=https://pe.example.com/mcp$(touch /config/PWNED)
+          EOF
+          set +e
+          docker run --rm -v /tmp/injection-config:/config ${{ steps.build.outputs.imageid }} validate
+          set -e
+          if [ -f /tmp/injection-config/PWNED ]; then
+            echo "::error::config.env was executed as a shell script instead of parsed as data"
+            exit 1
+          fi
+
       - name: setup writes config.env and pe-ca.pem from piped answers
         run: |
           mkdir -p /tmp/setup-config /tmp/fixture-cert
