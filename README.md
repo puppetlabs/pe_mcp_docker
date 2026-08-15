@@ -129,13 +129,6 @@ Notes:
 - If you only want the New MCP, deploy it via the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module.
 - **Gotcha — TLS Hostname mismatch when connecting to the Legacy MCP**: `pe-mcp-thin validate` may fail with `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for '<fqdn>'`. This happens when the PE console's `console-cert` (the cert the Legacy `/mcp` proxy presents) doesn't list the primary's FQDN as a Subject Alternative Name. See [`docs/cheatsheet_pe_mcp_docker.md`](docs/cheatsheet_pe_mcp_docker.md#troubleshooting) for the exact `openssl` diagnostic and the fix (regenerate `console-cert` on the primary with the FQDN added as a SAN).
 
-### Explanations
-
-<!-- explanationlog -->
-* [Why pe-mcp-thin is a proxy, not a direct client](docs/explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md)
-* [PAG testing](docs/pag-testing/explanation_pag_testing.md)
-<!-- explanationlogstop -->
-
 ### How-To Guides
 
 <!-- howtolog -->
@@ -147,3 +140,4 @@ Notes:
 <!-- cheatsheetlog -->
 * [pe_mcp_docker](docs/cheatsheet_pe_mcp_docker.md)
 <!-- cheatsheetlogstop -->
+
