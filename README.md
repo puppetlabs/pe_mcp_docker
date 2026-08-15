@@ -42,9 +42,9 @@ This step assumes you have the path to your CA cert from (1) and a valid RBAC to
 ```bash
 export PE_CA_CERT="$(pwd)/certs/pe-ca.pem"         # set this to the path of the cert downloaded above
 export PE_MCP_URL="https://<mcp-node-fqdn>/mcp"    # NOTE: no trailing slash!
-export PE_RBAC_TOKEN="..."                         # only if pointed at pe-infra-assistant, see below
+export PE_RBAC_TOKEN="..."
 
-# self-check: confirms the connection works before wiring up a client
+# confirm the connection works before wiring up a client
 uvx --from git+https://github.com/puppetlabs/pe_mcp_docker.git@main pe-mcp-thin validate
 ```
 
@@ -91,6 +91,11 @@ For example, if you are using claude, then:
 * Add to `~/.mcp.json` the `pe-mcp-thin` server above for global access.  Or add it to `.mcp.json` for a specific project.
 - Restart claude and confirm that the `pe-mcp-thin` server is connected.
 
+Note also:
+- If you want the Legacy MCP, make sure the Legacy MCP is enabled on that PE according to [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
+- If you want the new MCP, deploy it via the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module.
+- **Gotcha — TLS Hostname mismatch when connecting to the Legacy MCP**: `pe-mcp-thin validate` may fail with `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for '<fqdn>'`. This happens when the PE console's `console-cert` (the cert the Legacy `/mcp` proxy presents) doesn't list the primary's FQDN as a Subject Alternative Name. See [`docs/cheatsheet_pe_mcp_docker.md`](docs/cheatsheet_pe_mcp_docker.md#troubleshooting) for the exact `openssl` diagnostic and the fix (regenerate `console-cert` on the primary with the FQDN added as a SAN).
+
 ### (5) Connect to more than one PE MCP at the same time (optional)
 
 `pe-mcp-thin` doesn't know or care which flavour of PE MCP it's proxying — the endpoint is decided entirely by `PE_MCP_URL` at startup. That means you can have multiple entries in the same `~/.mcp.json` pointing at different PE MCPs (e.g. one Legacy, one New) and use them side-by-side in a single client session. Give each entry a distinct top-level key so the client can namespace the tools:
@@ -121,23 +126,3 @@ For example, if you are using claude, then:
   }
 }
 ```
-
-Notes:
-
-- Each entry needs its own valid `PE_MCP_URL` / `PE_CA_CERT` / `PE_RBAC_TOKEN` — those envs are per-server, not shared. If both PE MCPs sit behind the same CA and use the same RBAC token, it's fine (and tidier) to point them at the same files.
-- If you only want the Legacy MCP, make sure the Legacy MCP is enabled on that PE — see the [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
-- If you only want the New MCP, deploy it via the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module.
-- **Gotcha — TLS Hostname mismatch when connecting to the Legacy MCP**: `pe-mcp-thin validate` may fail with `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for '<fqdn>'`. This happens when the PE console's `console-cert` (the cert the Legacy `/mcp` proxy presents) doesn't list the primary's FQDN as a Subject Alternative Name. See [`docs/cheatsheet_pe_mcp_docker.md`](docs/cheatsheet_pe_mcp_docker.md#troubleshooting) for the exact `openssl` diagnostic and the fix (regenerate `console-cert` on the primary with the FQDN added as a SAN).
-
-### How-To Guides
-
-<!-- howtolog -->
-* [Release pe_mcp_docker](docs/howto_release_pe_mcp_docker.md)
-<!-- howtologstop -->
-
-### Cheatsheets
-
-<!-- cheatsheetlog -->
-* [pe_mcp_docker](docs/cheatsheet_pe_mcp_docker.md)
-<!-- cheatsheetlogstop -->
-
