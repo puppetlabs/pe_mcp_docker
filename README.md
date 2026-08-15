@@ -33,7 +33,7 @@ Remember the path to this cert because you'll need it in step **(3)**.
 
 ### (2) Get a valid RBAC token
 
-There are a number of ways to get an RBAC token. One is to log onto the PE console and follow [these instructions](https://help.puppet.com/pe/2025.11/topics/rbac-token-auth-generate-token-console.htm) Save this token securely somewhere because you'll need this in step **(3)**.
+There are a number of ways to get an RBAC token. One is to log onto the PE console and follow [these instructions](https://help.puppet.com/pe/current/topics/rbac-token-auth-generate-token-console.htm). If you have ssh access to the primary, you can instead generate one via `puppet access login --username=<YOURUSER> --lifetime=1y --print` — see the [cheatsheet](docs/cheatsheet_pe_mcp_docker.md#pre-requisites) for details. Save this token securely somewhere because you'll need this in step **(3)**.
 
 ### (3) Validate your connection to the MCP
 
@@ -42,9 +42,9 @@ This step assumes you have the path to your CA cert from (1) and a valid RBAC to
 ```bash
 export PE_CA_CERT="$(pwd)/certs/pe-ca.pem"         # set this to the path of the cert downloaded above
 export PE_MCP_URL="https://<mcp-node-fqdn>/mcp"    # NOTE: no trailing slash!
-export PE_RBAC_TOKEN="..."                         # only if pointed at pe-infra-assistant, see below
+export PE_RBAC_TOKEN="..."
 
-# self-check: confirms the connection works before wiring up a client
+# confirm the connection works before wiring up a client
 uvx --from git+https://github.com/puppetlabs/pe_mcp_docker.git@main pe-mcp-thin validate
 ```
 
@@ -91,21 +91,38 @@ For example, if you are using claude, then:
 * Add to `~/.mcp.json` the `pe-mcp-thin` server above for global access.  Or add it to `.mcp.json` for a specific project.
 - Restart claude and confirm that the `pe-mcp-thin` server is connected.
 
-### Explanations
+Note also:
+- If you want the Legacy MCP, make sure the Legacy MCP is enabled on that PE according to [Infra Assistant Documentation](https://help.puppet.com/pe/current/topics/enabling-the-infra-assistant.htm).
+- If you want the new MCP, deploy it via the [`puppetlabs-pe_mcp`](https://github.com/puppetlabs/puppetlabs-pe_mcp#quickstart) Bolt module.
+- **Gotcha — TLS Hostname mismatch when connecting to the Legacy MCP**: `pe-mcp-thin validate` may fail with `[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for '<fqdn>'`. This happens when the PE console's `console-cert` (the cert the Legacy `/mcp` proxy presents) doesn't list the primary's FQDN as a Subject Alternative Name. See [`docs/cheatsheet_pe_mcp_docker.md`](docs/cheatsheet_pe_mcp_docker.md#troubleshooting) for the exact `openssl` diagnostic and the fix (regenerate `console-cert` on the primary with the FQDN added as a SAN).
 
-<!-- explanationlog -->
-* [Why pe-mcp-thin is a proxy, not a direct client](docs/explanation_why_pe_mcp_thin_is_a_proxy_not_a_direct_client.md)
-* [PAG testing](docs/pag-testing/explanation_pag_testing.md)
-<!-- explanationlogstop -->
+### (5) Connect to more than one PE MCP at the same time (optional)
 
-### How-To Guides
+`pe-mcp-thin` doesn't know or care which flavour of PE MCP it's proxying — the endpoint is decided entirely by `PE_MCP_URL` at startup. That means you can have multiple entries in the same `~/.mcp.json` pointing at different PE MCPs (e.g. one Legacy, one New) and use them side-by-side in a single client session. Give each entry a distinct top-level key so the client can namespace the tools:
 
-<!-- howtolog -->
-* [pe_mcp_docker release](docs/howto_pe_mcp_docker_release.md)
-<!-- howtologstop -->
-
-### Cheatsheets
-
-<!-- cheatsheetlog -->
-* [pe_mcp_docker](docs/cheatsheet_pe_mcp_docker.md)
-<!-- cheatsheetlogstop -->
+```json
+{
+  "mcpServers": {
+    "pe-mcp-decoupled": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/puppetlabs/pe_mcp_docker.git@main", "pe-mcp-thin", "serve"],
+      "env": {
+        "PE_MCP_URL": "https://<new-mcp-node-fqdn>/mcp",
+        "PE_CA_CERT": "/path/to/pe-ca.pem",
+        "PE_RBAC_TOKEN": "..."
+      }
+    },
+    "pe-infra-assistant": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/puppetlabs/pe_mcp_docker.git@main", "pe-mcp-thin", "serve"],
+      "env": {
+        "PE_MCP_URL": "https://<legacy-mcp-node-fqdn>/mcp",
+        "PE_CA_CERT": "/path/to/pe-ca.pem",
+        "PE_RBAC_TOKEN": "..."
+      }
+    }
+  }
+}
+```

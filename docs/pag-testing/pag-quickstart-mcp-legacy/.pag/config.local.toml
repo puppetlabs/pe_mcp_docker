@@ -1,5 +1,0 @@
-version = 1
-
-[[registries]]
-type = "devcatalog"
-url = "file:////Users/gavin.didrichsen/@REFERENCES/github/app/development/tools/puppet/pag-testing/uvx/internal/catalog/servers"

@@ -1,5 +1,0 @@
-version = 1
-
-[[registries]]
-type = "devcatalog"
-url = "file:///FULL/PATH/TO/THIS/REPO/docs/pag-testing/internal/catalog/servers"
