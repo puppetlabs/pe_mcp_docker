@@ -132,7 +132,7 @@ Notes:
 ### How-To Guides
 
 <!-- howtolog -->
-* [pe_mcp_docker release](docs/howto_pe_mcp_docker_release.md)
+* [Release pe_mcp_docker](docs/howto_release_pe_mcp_docker.md)
 <!-- howtologstop -->
 
 ### Cheatsheets
