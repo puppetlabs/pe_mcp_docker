@@ -33,7 +33,7 @@ Remember the path to this cert because you'll need it in step **(3)**.
 
 ### (2) Get a valid RBAC token
 
-There are a number of ways to get an RBAC token. One is to log onto the PE console and follow [these instructions](https://help.puppet.com/pe/2025.11/topics/rbac-token-auth-generate-token-console.htm) Save this token securely somewhere because you'll need this in step **(3)**.
+There are a number of ways to get an RBAC token. One is to log onto the PE console and follow [these instructions](https://help.puppet.com/pe/current/topics/rbac-token-auth-generate-token-console.htm). If you have ssh access to the primary, you can instead generate one via `puppet access login --username=<YOURUSER> --lifetime=1y --print` — see the [cheatsheet](docs/cheatsheet_pe_mcp_docker.md#pre-requisites) for details. Save this token securely somewhere because you'll need this in step **(3)**.
 
 ### (3) Validate your connection to the MCP
 
