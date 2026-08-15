@@ -101,3 +101,65 @@ unset PE_RBAC_TOKEN
 ```
 
 All three: expect `PASS: connected to PE MCP, N tool(s) available` with an identical tool list every time.
+
+## Troubleshooting
+
+### TLS Hostname mismatch against the Legacy MCP (`console-cert` missing FQDN SAN)
+
+**Symptom** — `pe-mcp-thin validate` against the Legacy MCP (the `/mcp` endpoint served by the PE console vhost) fails with:
+
+```
+[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch,
+certificate is not valid for '<pe-primary-fqdn>'.
+```
+
+**Why** — the Legacy MCP's `/mcp` path is a `location` block inside the same nginx vhost as the PE console (`/etc/puppetlabs/nginx/conf.d/infra_assistant_mcp.inc`). That vhost presents PE's `console-cert`, which PE generates with a **single hardcoded SAN** (`puppet_enterprise::console_host`) — not the multi-SAN `dns_alt_names` set for the primary's own agent cert. If `console_host` is set to the short hostname, the FQDN isn't a SAN, and any TLS client verifying against the FQDN fails hostname verification. This is not a `pe-mcp-thin` bug — `pe-mcp-thin` deliberately has no way to bypass hostname verification.
+
+**Diagnose** — check the actual SANs on `console-cert` (from your workstation, no PE access needed):
+
+```bash
+openssl s_client -connect <pe-primary-fqdn>:443 -servername <pe-primary-fqdn> 2>/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName
+# subject=CN=console-cert
+# X509v3 Subject Alternative Name:
+#     DNS:<short-hostname>, DNS:console-cert
+# If the FQDN is missing from that DNS list, you have this gotcha.
+```
+
+**Fix** — regenerate `console-cert` on the primary with the FQDN added as a SAN. Requires PE primary access (root/sudo); the thin client cannot work around this from the client side.
+
+```bash
+# on the PE primary, as root:
+
+# 1. clean/revoke the old console-cert
+puppetserver ca clean --certname console-cert
+
+# 2. remove the on-disk PEM/public-key artifacts too — otherwise `ca generate`
+#    errors out with "Existing entry found for certname console-cert"
+rm -f /etc/puppetlabs/puppet/ssl/certs/console-cert.pem
+rm -f /etc/puppetlabs/puppet/ssl/public_keys/console-cert.pem
+
+# 3. regenerate with the FQDN added alongside the two SANs PE would set by default
+#    (keep the short hostname + console-cert so nothing else that trusts them breaks)
+puppetserver ca generate \
+    --certname console-cert \
+    --subject-alt-names <short-hostname>,console-cert,<pe-primary-fqdn>
+
+# 4. apply — this is what actually copies the new cert into the console-services
+#    data dir and cascades pe-console-services / pe-nginx restarts via PE's own
+#    file{} / notify wiring (no manual systemctl restart needed).
+puppet agent -t
+
+# 5. confirm the new SAN list contains the FQDN
+openssl x509 -in /etc/puppetlabs/puppet/ssl/certs/console-cert.pem -noout -ext subjectAltName
+```
+
+Then, from the workstation, re-run `pe-mcp-thin validate` against the FQDN — it should now pass. Also load the PE console in a browser as a regression check (that vhost is shared).
+
+**HA/DR caveat (PE-44605)** — on a CA-DB-backend / HA topology, `console-cert` is pglogical-replicated to the replica's CA DB, and PE's own promotion logic will re-fire the `ca generate` step using only `console_host` on failover. A manually-added FQDN SAN will be **dropped** on promotion and needs re-applying. File-based CA topologies (the default) are unaffected.
+
+**Won't-work shortcuts** —
+
+- `--ca-client --force`: this flag is for regenerating an identity `pe-puppetserver` itself uses as a client (e.g. the primary's own agent cert) and requires stopping `pe-puppetserver` first. `console-cert` is not that identity; don't pass this flag or you'll be forced into an unnecessary service stop.
+- `peadm::modify_certificate`: PEADM's cert-regen plan operates on a node's own agent certname, not on `console-cert` — this is not a shortcut.
+- `PE_CA_CERT=<some-other-ca>` or editing the CA bundle: irrelevant. This is a hostname-verification failure, not a chain-of-trust failure. The CA is fine; the SAN list is the problem.
